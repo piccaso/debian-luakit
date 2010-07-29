@@ -7,7 +7,8 @@ PREFIX    ?= /usr/local
 MANPREFIX ?= ${PREFIX}/share/man
 
 # Generate includes and libs
-PKGS := gtk+-2.0 gthread-2.0 webkit-1.0 lua libxdg-basedir
+# liblua5.1-0-dev libgtk2.0-dev libwebkit-dev libxdg-basedir-dev gperf
+PKGS := gtk+-2.0 gthread-2.0 webkit-1.0 lua5.1 libxdg-basedir
 INCS := $(shell pkg-config --cflags ${PKGS}) -I./
 LIBS := $(shell pkg-config --libs ${PKGS})
 

@@ -1,0 +1,15 @@
+This is the Debian prepackaged version of Luakit.
+
+This package was put together by Clint Adams <schizo@debian.org>
+with sources obtained from:
+  http://www.luakit.org/
+
+The following copyrights and license apply to this software:
+
+Copyright (C) 2010 Mason Larobina <mason.larobina@gmail.com>
+Copyright (C) 2007-2009 Julien Danjou <julien@danjou.info>
+Copyright (C) 2006 Pierre Habouzit <madcoder@debian.org>
+
+Luakit is distributed under the terms of the GNU General Public
+License version 3 or later, which can be found on your Debian
+system as /usr/share/common-licenses/GPL-3 .

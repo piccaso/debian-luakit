@@ -1,0 +1,16 @@
+Source: luakit
+Section: web
+Priority: optional
+Maintainer: Clint Adams <schizo@debian.org>
+Standards-Version: 3.9.1
+Build-Depends: liblua5.1-0-dev, libgtk2.0-dev, libwebkit-dev, libxdg-basedir-dev, gperf
+Homepage: http://www.luakit.org/
+Vcs-Git: git://git.debian.org/collab-maint/luakit.git
+Vcs-Browser: http://git.debian.org/?p=collab-maint/luakit.git;a=summary
+
+Package: luakit
+Architecture: any
+Section: web
+Depends: ${shlibs:Depends}
+Description: A fast and small web browser extensible by Lua
+ Luakit is a small web browser created by binding Lua to WebKitGTK.

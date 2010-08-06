@@ -153,6 +153,18 @@ luaH_notebook_get_title(lua_State *L)
 }
 
 static gint
+luaH_notebook_switch(lua_State *L)
+{
+    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    gint i = luaL_checknumber(L, 2);
+    /* correct index */
+    if (i != -1) i--;
+    gtk_notebook_set_current_page(GTK_NOTEBOOK(w->widget), i);
+    lua_pushnumber(L, gtk_notebook_get_current_page(GTK_NOTEBOOK(w->widget)));
+    return 1;
+}
+
+static gint
 luaH_notebook_index(lua_State *L, luakit_token_t token)
 {
     widget_t *w = luaH_checkudata(L, 1, &widget_class);
@@ -187,6 +199,10 @@ luaH_notebook_index(lua_State *L, luakit_token_t token)
         lua_pushcfunction(L, luaH_notebook_atindex);
         return 1;
 
+      case L_TK_SWITCH:
+        lua_pushcfunction(L, luaH_notebook_switch);
+        return 1;
+
       case L_TK_SET_TITLE:
         lua_pushcfunction(L, luaH_notebook_set_title);
         return 1;
@@ -211,6 +227,10 @@ luaH_notebook_index(lua_State *L, luakit_token_t token)
 
       case L_TK_HIDE:
         lua_pushcfunction(L, luaH_widget_hide);
+        return 1;
+
+      case L_TK_FOCUS:
+        lua_pushcfunction(L, luaH_widget_focus);
         return 1;
 
       default:

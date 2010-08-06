@@ -23,7 +23,13 @@
 #include "widgets/common.h"
 #include <JavaScriptCore/JavaScript.h>
 #include <webkit/webkit.h>
+#include <libsoup/soup.h>
 #include "math.h"
+
+static struct {
+    SoupSession   *session;
+    SoupCookieJar *cookiejar;
+} Soup = { NULL, NULL };
 
 typedef enum { BOOL, CHAR, INT, FLOAT, DOUBLE } property_value_type;
 
@@ -132,7 +138,7 @@ load_start_cb(WebKitWebView *v, WebKitWebFrame *f, widget_t *w)
     lua_pop(L, 1);
 }
 
-static void inline
+inline static void
 update_uri(GtkWidget *view, const gchar *uri, widget_t *w)
 {
     /* return if uri has not changed */
@@ -236,30 +242,80 @@ navigation_decision_cb(WebKitWebView *v, WebKitWebFrame *f,
     return TRUE;
 }
 
-static gint
-get_scroll(GtkWidget *scroll)
+inline static gint
+push_adjustment_values(lua_State *L, GtkAdjustment *adjustment)
 {
-    GtkAdjustment *adjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(scroll));
     gdouble view_size = gtk_adjustment_get_page_size(adjustment);
     gdouble value = gtk_adjustment_get_value(adjustment);
     gdouble max = gtk_adjustment_get_upper(adjustment) - view_size;
-
-    if (max == 0)
-        return -1;
-    else if (value == max)
-        return 100;
-    else if (value == 0)
-        return 0;
-    else
-        return (gint) ceil(((value / max) * 100));
+    lua_pushnumber(L, value);
+    lua_pushnumber(L, (max < 0 ? 0 : max));
+    lua_pushnumber(L, view_size);
+    return 3;
 }
 
 static gint
-luaH_webview_get_scroll(lua_State *L)
+luaH_webview_get_vscroll(lua_State *L)
 {
     widget_t *w = luaH_checkudata(L, 1, &widget_class);
-    lua_pushnumber(L, get_scroll(w->widget));
-    return 1;
+    GtkAdjustment *adjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(w->widget));
+    return push_adjustment_values(L, adjustment);
+}
+
+static gint
+luaH_webview_get_hscroll(lua_State *L)
+{
+    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    GtkAdjustment *adjustment = gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(w->widget));
+    return push_adjustment_values(L, adjustment);
+}
+
+inline static void
+set_adjustment(GtkAdjustment *adjustment, gdouble new)
+{
+    gdouble view_size = gtk_adjustment_get_page_size(adjustment);
+    gdouble max = gtk_adjustment_get_upper(adjustment) - view_size;
+    gtk_adjustment_set_value(adjustment, ((new < 0 ? 0 : new) > max ? max : new));
+}
+
+static gint
+luaH_webview_set_scroll_vert(lua_State *L)
+{
+    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    gdouble value = (gdouble) luaL_checknumber(L, 2);
+    GtkAdjustment *adjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(w->widget));
+    set_adjustment(adjustment, value);
+    return 0;
+}
+
+static gint
+luaH_webview_set_scroll_horiz(lua_State *L)
+{
+    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    gdouble value = (gdouble) luaL_checknumber(L, 2);
+    GtkAdjustment *adjustment = gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(w->widget));
+    set_adjustment(adjustment, value);
+    return 0;
+}
+
+static gint
+luaH_webview_go_back(lua_State *L)
+{
+    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    gint steps = (gint) luaL_checknumber(L, 2);
+    GtkWidget *view = GTK_WIDGET(g_object_get_data(G_OBJECT(w->widget), "webview"));
+    webkit_web_view_go_back_or_forward(WEBKIT_WEB_VIEW(view), steps * -1);
+    return 0;
+}
+
+static gint
+luaH_webview_go_forward(lua_State *L)
+{
+    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    gint steps = (gint) luaL_checknumber(L, 2);
+    GtkWidget *view = GTK_WIDGET(g_object_get_data(G_OBJECT(w->widget), "webview"));
+    webkit_web_view_go_back_or_forward(WEBKIT_WEB_VIEW(view), steps);
+    return 0;
 }
 
 static gint
@@ -404,8 +460,20 @@ luaH_webview_index(lua_State *L, luakit_token_t token)
 
     switch(token)
     {
-      case L_TK_GET_SCROLL:
-        lua_pushcfunction(L, luaH_webview_get_scroll);
+      case L_TK_GET_SCROLL_VERT:
+        lua_pushcfunction(L, luaH_webview_get_vscroll);
+        return 1;
+
+      case L_TK_GET_SCROLL_HORIZ:
+        lua_pushcfunction(L, luaH_webview_get_hscroll);
+        return 1;
+
+      case L_TK_SET_SCROLL_VERT:
+        lua_pushcfunction(L, luaH_webview_set_scroll_vert);
+        return 1;
+
+      case L_TK_SET_SCROLL_HORIZ:
+        lua_pushcfunction(L, luaH_webview_set_scroll_horiz);
         return 1;
 
       case L_TK_SET_PROP:
@@ -432,8 +500,20 @@ luaH_webview_index(lua_State *L, luakit_token_t token)
         lua_pushcfunction(L, luaH_widget_hide);
         return 1;
 
+      case L_TK_FOCUS:
+        lua_pushcfunction(L, luaH_widget_focus);
+        return 1;
+
       case L_TK_LOADING:
         lua_pushcfunction(L, luaH_webview_loading);
+        return 1;
+
+      case L_TK_GO_BACK:
+        lua_pushcfunction(L, luaH_webview_go_back);
+        return 1;
+
+      case L_TK_GO_FORWARD:
+        lua_pushcfunction(L, luaH_webview_go_forward);
         return 1;
 
       default:
@@ -476,18 +556,9 @@ expose_cb(GtkWidget *widget, GdkEventExpose *e, widget_t *w)
 {
     (void) e;
     (void) widget;
-
-    gint old = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(w->widget), "scroll-percentage"));
-    gint new = get_scroll(w->widget);
-
-    if (old == new)
-        return FALSE;
-
-    g_object_set_data(G_OBJECT(w->widget), "scroll-percentage", GINT_TO_POINTER(new));
     lua_State *L = globalconf.L;
     luaH_object_push(L, w->ref);
-    lua_pushnumber(L, new);
-    luaH_object_emit_signal(L, -2, "scroll-update", 1, 0);
+    luaH_object_emit_signal(L, -1, "expose", 0, 0);
     lua_pop(L, 1);
     return FALSE;
 }
@@ -530,6 +601,15 @@ widget_webview(widget_t *w)
     w->index = luaH_webview_index;
     w->newindex = luaH_webview_newindex;
     w->destructor = webview_destructor;
+
+    /* init soup session & cookies handling */
+    if (!Soup.session) {
+        Soup.session = webkit_get_default_session();
+        gchar *cookie_file = g_build_filename(globalconf.base_directory, "cookies.txt", NULL);
+        Soup.cookiejar = soup_cookie_jar_text_new(cookie_file, FALSE);
+        soup_session_add_feature(Soup.session, (SoupSessionFeature*) Soup.cookiejar);
+        g_free(cookie_file);
+    }
 
     GtkWidget *view = webkit_web_view_new();
     w->widget = gtk_scrolled_window_new(NULL, NULL);

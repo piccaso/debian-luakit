@@ -26,7 +26,8 @@ clean:
 install: build
 	$(checkdir)
 	$(INSTALL_DIR) debian/$(package)/usr/bin
-	$(INSTALL_PROGRAM) luakit debian/$(package)/usr/bin
+	$(MAKE) install DESTDIR=debian/$(package)
+	rm -rf debian/$(package)/usr/share/luakit/docs
 ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
 	strip --remove-section=.comment --remove-section=.note \
 		debian/$(package)/usr/bin/luakit
@@ -45,12 +46,14 @@ binary-arch:	checkroot build install
 	$(INSTALL_FILE) debian/README.Debian debian/$(package)/usr/share/doc/$(package)/
 	$(INSTALL_FILE) debian/copyright debian/$(package)/usr/share/doc/$(package)/copyright
 	$(INSTALL_FILE) debian/changelog debian/$(package)/usr/share/doc/$(package)/changelog.Debian
+	$(INSTALL_FILE) debian/conffiles debian/$(package)/DEBIAN/conffiles
 
 	gzip -9f `find debian/$(package)/usr/share/doc -type f ! -name "copyright"`
 	dpkg-shlibdeps -Tdebian/substvars debian/$(package)/usr/bin/luakit
 	dpkg-gencontrol -ldebian/changelog -isp -p$(package) -Tdebian/substvars -Pdebian/luakit
-	cd debian/$(package) && find * -type f ! -regex '^DEBIAN/.*' -print0 | xargs -r0 md5sum > DEBIAN/md5sums
+	cd debian/$(package) && find * -type f ! -regex '^DEBIAN/.*' ! -path "etc/xdg/$(package)/rc.lua" -print0 | xargs -r0 md5sum > DEBIAN/md5sums
 
+	chmod a-x debian/$(package)/usr/share/luakit/lib/*.lua
 	chown -R root:root debian/$(package)
 	chmod -R go=rX debian/$(package)
 

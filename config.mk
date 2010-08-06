@@ -5,8 +5,8 @@ VERSION   ?= $(shell ./build-utils/getversion.sh)
 # Paths
 PREFIX     ?= /usr
 INSTALLDIR ?= ${DESTDIR}${PREFIX}
-MANPREFIX  ?= ${PREFIX}/share/man
-DOCDIR     ?= ${PREFIX}/share/luakit/docs
+MANPREFIX  ?= ${DESTDIR}${PREFIX}/share/man
+DOCDIR     ?= ${DESTDIR}${PREFIX}/share/luakit/docs
 
 # Generate includes and libs
 # liblua5.1-0-dev libgtk2.0-dev libwebkit-dev libxdg-basedir-dev gperf

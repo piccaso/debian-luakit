@@ -1,3 +1,9 @@
+luakit (0~20100806-1) experimental; urgency=low
+
+  * New upstream snapshot.
+
+ -- Clint Adams <schizo@debian.org>  Fri, 06 Aug 2010 08:04:16 -0400
+
 luakit (0~20100725-1) experimental; urgency=low
 
   * Initial snapshot.

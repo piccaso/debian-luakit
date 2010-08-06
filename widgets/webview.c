@@ -452,6 +452,25 @@ luaH_webview_loading(lua_State *L)
     return 1;
 }
 
+void
+show_scrollbars(widget_t *w, gboolean show)
+{
+    GtkWidget *view = g_object_get_data(G_OBJECT(w->widget), "webview");
+    WebKitWebFrame *mf = webkit_web_view_get_main_frame(WEBKIT_WEB_VIEW(view));
+    gulong id = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(view), "hide_handler_id"));
+
+    if (show) {
+        if (id)
+            g_signal_handler_disconnect((gpointer) mf, id);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(w->widget), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+        id = 0;
+    } else if (!id) {
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(w->widget), GTK_POLICY_NEVER, GTK_POLICY_NEVER);
+        id = g_signal_connect(G_OBJECT(mf), "scrollbars-policy-changed", G_CALLBACK(true_cb), NULL);
+    }
+    g_object_set_data(G_OBJECT(view), "hide_handler_id", GINT_TO_POINTER(id));
+}
+
 static gint
 luaH_webview_index(lua_State *L, luakit_token_t token)
 {
@@ -460,6 +479,10 @@ luaH_webview_index(lua_State *L, luakit_token_t token)
 
     switch(token)
     {
+      case L_TK_DESTROY:
+        lua_pushcfunction(L, luaH_widget_destroy);
+        return 1;
+
       case L_TK_GET_SCROLL_VERT:
         lua_pushcfunction(L, luaH_webview_get_vscroll);
         return 1;
@@ -543,6 +566,10 @@ luaH_webview_newindex(lua_State *L, luakit_token_t token)
         g_object_set_data_full(G_OBJECT(view), "uri", uri, g_free);
         break;
 
+      case L_TK_SHOW_SCROLLBARS:
+        show_scrollbars(w, luaH_checkboolean(L, 3));
+        return 0;
+
       default:
         warn("unknown property: %s", luaL_checkstring(L, 2));
         return 0;
@@ -564,7 +591,7 @@ expose_cb(GtkWidget *widget, GdkEventExpose *e, widget_t *w)
 }
 
 static gboolean
-button_press_cb(GtkWidget *view, GdkEventButton *event, widget_t *w)
+wv_button_press_cb(GtkWidget *view, GdkEventButton *event, widget_t *w)
 {
     if((event->type != GDK_BUTTON_PRESS) || (event->button != 1))
         return FALSE;
@@ -605,7 +632,7 @@ widget_webview(widget_t *w)
     /* init soup session & cookies handling */
     if (!Soup.session) {
         Soup.session = webkit_get_default_session();
-        gchar *cookie_file = g_build_filename(globalconf.base_directory, "cookies.txt", NULL);
+        gchar *cookie_file = g_build_filename(globalconf.base_data_directory, "cookies.txt", NULL);
         Soup.cookiejar = soup_cookie_jar_text_new(cookie_file, FALSE);
         soup_session_add_feature(Soup.session, (SoupSessionFeature*) Soup.cookiejar);
         g_free(cookie_file);
@@ -615,14 +642,13 @@ widget_webview(widget_t *w)
     w->widget = gtk_scrolled_window_new(NULL, NULL);
     g_object_set_data(G_OBJECT(w->widget), "widget", w);
     g_object_set_data(G_OBJECT(w->widget), "webview", view);
-
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(w->widget),
-        GTK_POLICY_NEVER, GTK_POLICY_NEVER);
     gtk_container_add(GTK_CONTAINER(w->widget), view);
+
+    show_scrollbars(w, TRUE);
 
     /* connect webview signals */
     g_object_connect((GObject*)view,
-      "signal::button-press-event",                   (GCallback)button_press_cb,        w,
+      "signal::button-press-event",                   (GCallback)wv_button_press_cb,     w,
       "signal::expose-event",                         (GCallback)expose_cb,              w,
       "signal::focus-in-event",                       (GCallback)focus_cb,               w,
       "signal::focus-out-event",                      (GCallback)focus_cb,               w,

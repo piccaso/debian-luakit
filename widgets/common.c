@@ -41,6 +41,19 @@ key_press_cb(GtkWidget *win, GdkEventKey *ev, widget_t *w)
 }
 
 gboolean
+button_press_cb(GtkWidget *win, GdkEventButton *ev, widget_t *w)
+{
+    (void) win;
+    if (ev->type != GDK_BUTTON_PRESS)
+        return FALSE;
+    lua_State *L = globalconf.L;
+    luaH_object_push(L, w->ref);
+    luaH_object_emit_signal(L, -1, "clicked", 0, 0);
+    lua_pop(L, 1);
+    return FALSE;
+}
+
+gboolean
 focus_cb(GtkWidget *win, GdkEventFocus *ev, widget_t *w)
 {
     (void) win;
@@ -97,6 +110,12 @@ parent_set_cb(GtkWidget *widget, GtkObject *old, widget_t *w)
         lua_pushnil(L);
     luaH_object_emit_signal(L, -2, "parent-set", 1, 0);
     lua_pop(L, 1);
+}
+
+gboolean
+true_cb()
+{
+    return TRUE;
 }
 
 /* set child method for gtk container widgets */
@@ -156,6 +175,17 @@ luaH_widget_focus(lua_State *L)
 {
     widget_t *w = luaH_checkudata(L, 1, &widget_class);
     gtk_widget_grab_focus(w->widget);
+    return 0;
+}
+
+gint
+luaH_widget_destroy(lua_State *L)
+{
+    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    if (w->destructor)
+        w->destructor(w);
+    w->destructor = NULL;
+    luaH_object_unref(L, w->ref);
     return 0;
 }
 

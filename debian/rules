@@ -26,7 +26,7 @@ clean:
 install: build
 	$(checkdir)
 	$(INSTALL_DIR) debian/$(package)/usr/bin
-	$(MAKE) install DESTDIR=debian/$(package)
+	$(MAKE) install PREFIX=/usr DESTDIR=debian/$(package)
 	rm -rf debian/$(package)/usr/share/luakit/docs
 ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
 	strip --remove-section=.comment --remove-section=.note \

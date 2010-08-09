@@ -1,3 +1,9 @@
+luakit (0~20100807-2) unstable; urgency=low
+
+  * Fix build prefix.
+
+ -- Clint Adams <schizo@debian.org>  Sun, 08 Aug 2010 21:12:34 -0400
+
 luakit (0~20100807-1) experimental; urgency=low
 
   * New upstream snapshot.

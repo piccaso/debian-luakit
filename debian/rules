@@ -12,7 +12,7 @@ DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
 build:
 	$(checkdir)
 
-	$(MAKE)
+	$(MAKE) PREFIX=/usr
 	touch build
 
 clean:

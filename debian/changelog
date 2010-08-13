@@ -1,3 +1,10 @@
+luakit (0~20100813-2) unstable; urgency=low
+
+  * New upstream development snapshot.
+  * Drop build dependency on libxdg-basedir-dev.
+
+ -- Clint Adams <schizo@debian.org>  Fri, 13 Aug 2010 12:19:13 -0400
+
 luakit (0~20100813-1) unstable; urgency=low
 
   * New upstream release.

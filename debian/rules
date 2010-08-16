@@ -43,7 +43,6 @@ binary-arch:	checkroot build install
 	cd debian/$(package) && $(INSTALL_DIR) usr/share/doc/$(package) \
 		DEBIAN
 
-	$(INSTALL_FILE) debian/README.Debian debian/$(package)/usr/share/doc/$(package)/
 	$(INSTALL_FILE) debian/copyright debian/$(package)/usr/share/doc/$(package)/copyright
 	$(INSTALL_FILE) debian/changelog debian/$(package)/usr/share/doc/$(package)/changelog.Debian
 	$(INSTALL_FILE) debian/conffiles debian/$(package)/DEBIAN/conffiles

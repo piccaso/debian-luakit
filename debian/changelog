@@ -1,3 +1,10 @@
+luakit (0~20100813-3) unstable; urgency=low
+
+  * New upstream development snapshot.
+  * Drop README.Debian file.
+
+ -- Clint Adams <schizo@debian.org>  Mon, 16 Aug 2010 09:30:10 -0700
+
 luakit (0~20100813-2) unstable; urgency=low
 
   * New upstream development snapshot.

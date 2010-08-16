@@ -170,7 +170,7 @@ void
 signal_object_emit(lua_State *L, signal_t *signals,
         const gchar *name, gint nargs) {
 
-    signal_array_t *sigfuncs = signal_lookup(signals, name, FALSE);
+    signal_array_t *sigfuncs = signal_lookup(signals, name);
     if(sigfuncs) {
         gint nbfunc = sigfuncs->len;
         luaL_checkstack(L, lua_gettop(L) + nbfunc + nargs + 1,
@@ -206,12 +206,10 @@ luaH_object_emit_signal(lua_State *L, gint oud,
     gint ret, top, bot = lua_gettop(L) - nargs + 1;
     gint oud_abs = luaH_absindex(L, oud);
     lua_object_t *obj = lua_touserdata(L, oud);
+    debug("emitting \"%s\" on %p with %d args and %d nret", name, obj, nargs, nret);
     if(!obj)
         luaL_error(L, "trying to emit signal on non-object");
-
-    debug("emitting \"%s\" on %p with %d args and %d nret", name, obj, nargs, nret);
-
-    signal_array_t *sigfuncs = signal_lookup(obj->signals, name, FALSE);
+    signal_array_t *sigfuncs = signal_lookup(obj->signals, name);
     if(sigfuncs) {
         guint nbfunc = sigfuncs->len;
         luaL_checkstack(L, lua_gettop(L) + nbfunc + nargs + 2, "too much signal");
@@ -247,9 +245,8 @@ luaH_object_emit_signal(lua_State *L, gint oud,
                         ret = nret;
                     }
                 }
-
                 /* Remove all signal functions and args from the stack */
-                for (gint i = bot; i < top; i++)
+                for (gint i = bot; i <= top; i++)
                     lua_remove(L, bot);
                 /* Return the number of returned arguments */
                 return ret;
@@ -292,7 +289,7 @@ gint
 luaH_object_gc(lua_State *L) {
     lua_object_t *item = lua_touserdata(L, 1);
     if (item->signals)
-        signal_tree_destroy(item->signals);
+        signal_destroy(item->signals);
     return 0;
 }
 

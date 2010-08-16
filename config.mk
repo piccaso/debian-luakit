@@ -9,13 +9,13 @@ MANPREFIX  ?= ${DESTDIR}${PREFIX}/share/man
 DOCDIR     ?= ${DESTDIR}${PREFIX}/share/luakit/docs
 
 # Generate includes and libs
-# liblua5.1-0-dev libgtk2.0-dev libwebkit-dev libxdg-basedir-dev gperf
-PKGS := gtk+-2.0 gthread-2.0 webkit-1.0 lua5.1 libxdg-basedir
+# liblua5.1-0-dev libgtk2.0-dev libwebkit-dev gperf
+PKGS := gtk+-2.0 gthread-2.0 webkit-1.0 lua5.1
 INCS := $(shell pkg-config --cflags ${PKGS}) -I./
 LIBS := $(shell pkg-config --libs ${PKGS})
 
 # Add flags
-CPPFLAGS := -DVERSION=\"${VERSION}\" -DDEBUG_MESSAGES ${CPPFLAGS}
+CPPFLAGS := -DVERSION=\"${VERSION}\" ${CPPFLAGS} -DDEVELOPMENT_PATHS
 CFLAGS   := -std=c99 -ggdb -W -Wall -Wextra ${INCS} ${CFLAGS}
 LDFLAGS  := ${LIBS} ${LDFLAGS}
 

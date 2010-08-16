@@ -2,6 +2,7 @@
  * luakit.c - luakit main functions
  *
  * Copyright (C) 2010 Mason Larobina <mason.larobina@gmail.com>
+ * Copyright (C) 2009 Enno Boland <gottox@s01.de>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,15 +16,6 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
-
-/*
- * MIT/X Consortium License (applies to some functions from surf.c)
- *
- * (C) 2009 Enno Boland <gottox@s01.de>
- *
- * See COPYING.MIT for the full license.
  *
  */
 
@@ -55,13 +47,12 @@ parseopts(int argc, char *argv[]) {
 
     /* define command line options */
     const GOptionEntry entries[] = {
-        { "uri", 'u', 0, G_OPTION_ARG_STRING_ARRAY, &uris,
-            "uri(s) to load at startup", "URI" },
-        { "config", 'c', 0, G_OPTION_ARG_STRING, &globalconf.confpath,
-            "configuration file to use", "FILE" },
-        { "version", 'V', 0, G_OPTION_ARG_NONE, &only_version,
-            "show version", NULL },
-        { NULL, 0, 0, 0, NULL, NULL, NULL }};
+      { "uri",     'u', 0, G_OPTION_ARG_STRING_ARRAY, &uris,                 "uri(s) to load at startup", "URI"  },
+      { "config",  'c', 0, G_OPTION_ARG_STRING,       &globalconf.confpath,  "configuration file to use", "FILE" },
+      { "version", 'V', 0, G_OPTION_ARG_NONE,         &only_version,         "print version and exit",    NULL   },
+      { "verbose", 'v', 0, G_OPTION_ARG_NONE,         &globalconf.verbose,   "print debugging output",      NULL   },
+      { NULL,      0,   0, 0,                         NULL,                  NULL,                        NULL   },
+    };
 
     /* parse command line options */
     context = g_option_context_new("[URI...]");
@@ -88,17 +79,17 @@ parseopts(int argc, char *argv[]) {
 }
 
 void
-init_lua(gchar **uris, xdgHandle *xdg)
+init_lua(gchar **uris)
 {
     gchar *uri;
     lua_State *L;
 
     /* init globalconf structs */
-    globalconf.signals = signal_tree_new();
+    globalconf.signals = signal_new();
     globalconf.windows = g_ptr_array_new();
 
     /* init lua */
-    luaH_init(xdg);
+    luaH_init();
     L = globalconf.L;
 
     /* push a table of the statup uris */
@@ -110,29 +101,28 @@ init_lua(gchar **uris, xdgHandle *xdg)
     lua_setglobal(L, "uris");
 
     /* parse and run configuration file */
-    if(!luaH_parserc(xdg, globalconf.confpath, TRUE))
+    if(!luaH_parserc(globalconf.confpath, TRUE))
         fatal("couldn't find rc file");
 
     if (!globalconf.windows->len)
-        fatal("no windows spawned by rc file load, exiting");
+        fatal("no windows spawned by rc file, exiting");
 }
 
 void
-init_directories(xdgHandle *xdg)
+init_directories(void)
 {
     /* create luakit directory */
-    globalconf.base_cache_directory = g_build_filename(xdgCacheHome(xdg), "luakit", NULL);
-    globalconf.base_config_directory = g_build_filename(xdgConfigHome(xdg), "luakit", NULL);
-    globalconf.base_data_directory = g_build_filename(xdgDataHome(xdg), "luakit", NULL);
-    g_mkdir_with_parents(globalconf.base_cache_directory, 0771);
-    g_mkdir_with_parents(globalconf.base_config_directory, 0771);
-    g_mkdir_with_parents(globalconf.base_data_directory, 0771);
+    globalconf.cache_dir  = g_build_filename(g_get_user_cache_dir(),  "luakit", NULL);
+    globalconf.config_dir = g_build_filename(g_get_user_config_dir(), "luakit", NULL);
+    globalconf.data_dir   = g_build_filename(g_get_user_data_dir(),   "luakit", NULL);
+    g_mkdir_with_parents(globalconf.cache_dir,  0771);
+    g_mkdir_with_parents(globalconf.config_dir, 0771);
+    g_mkdir_with_parents(globalconf.data_dir,   0771);
 }
 
 int
 main(int argc, char *argv[]) {
     gchar **uris = NULL;
-    xdgHandle xdg;
 
     /* clean up any zombies */
     sigchld(0);
@@ -144,17 +134,11 @@ main(int argc, char *argv[]) {
     /* parse command line opts and get uris to load */
     uris = parseopts(argc, argv);
 
-    /* get XDG basedir data */
-    xdgInitHandle(&xdg);
-
-    init_directories(&xdg);
-    init_lua(uris, &xdg);
-
-    /* we are finished with this */
-    xdgWipeHandle(&xdg);
+    init_directories();
+    init_lua(uris);
 
     gtk_main();
     return EXIT_SUCCESS;
 }
 
-// vim: ft=c:et:sw=4:ts=8:sts=4:enc=utf-8:tw=80
+// vim: ft=c:et:sw=4:ts=8:sts=4:tw=80

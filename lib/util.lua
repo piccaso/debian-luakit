@@ -15,8 +15,10 @@ local rtable = table
 local string = string
 local type = type
 local print = print
+local error = error
+local capi = { luakit = luakit }
 
--- Utility module for awful
+-- Utility module for luakit
 module("util")
 
 table = {}
@@ -139,4 +141,34 @@ function table.pop(t, k)
     return v
 end
 
--- vim: filetype=lua:expandtab:shiftwidth=4:tabstop=8:softtabstop=4:encoding=utf-8:textwidth=80
+-- Check if a file exists
+function os.exists(f)
+    fh, err = io.open(f)
+    if fh then
+        fh:close()
+        return true
+    end
+end
+
+-- Search locally, xdg home path and then luakit install path for a given file
+local function xdg_find(f, xdg_home_path)
+    -- Ignore absolute paths
+    if string.match(f, "^/") then
+        if os.exists(f) then return f end
+        error(string.format("xdg_find: No such file: %s\n", f))
+    end
+
+    -- Check if file exists at the following locations & return first match
+    local paths = { f, xdg_home_path .. "/" .. f, capi.luakit.install_path .. "/" .. f }
+    for _, p in ipairs(paths) do
+        if os.exists(p) then return p end
+    end
+
+    error(string.format("xdg_find: No such file at:\n\t%s\n", rtable.concat(paths, ",\n\t")))
+end
+
+function find_config(f) return xdg_find(f, capi.luakit.config_dir) end
+function find_data(f)   return xdg_find(f, capi.luakit.data_dir)   end
+function find_cache(f)  return xdg_find(f, capi.luakit.cache_dir)  end
+
+-- vim: ft=lua:et:sw=4:ts=8:sts=4:tw=80

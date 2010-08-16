@@ -23,7 +23,6 @@
 #define LUAKIT_LUA_H
 
 #include <lua.h>
-#include <basedir.h>
 #include "globalconf.h"
 #include "common/luaobject.h"
 #include "common/lualib.h"
@@ -145,8 +144,8 @@ luaH_warn(lua_State *L, const gchar *fmt, ...) {
     fprintf(stderr, "\n");
 }
 
-void luaH_init(xdgHandle *);
-gboolean luaH_parserc(xdgHandle *, const gchar *, gboolean);
+void luaH_init();
+gboolean luaH_parserc(const gchar *, gboolean);
 gboolean luaH_hasitem(lua_State *, gconstpointer);
 gint luaH_next(lua_State *, gint);
 gboolean luaH_isloop(lua_State *, gint);
@@ -157,4 +156,4 @@ void luaH_modifier_table_push(lua_State *, guint);
 void luaH_keystr_push(lua_State *, guint);
 
 #endif
-// vim: ft=c:et:sw=4:ts=8:sts=4:enc=utf-8:tw=80
+// vim: ft=c:et:sw=4:ts=8:sts=4:tw=80

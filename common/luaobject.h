@@ -158,7 +158,7 @@ gint luaH_object_emit_signal_simple(lua_State *L);
     prefix##_new(lua_State *L) {                                               \
         type *p = lua_newuserdata(L, sizeof(type));                            \
         p_clear(p, 1);                                                         \
-        p->signals = signal_tree_new();                                        \
+        p->signals = signal_new();                                             \
         luaH_settype(L, &(lua_class));                                         \
         lua_newtable(L);                                                       \
         lua_newtable(L);                                                       \
@@ -193,4 +193,4 @@ gint luaH_object_gc(lua_State *);
 
 #endif
 
-// vim: ft=c:et:sw=4:ts=8:sts=4:enc=utf-8:tw=80
+// vim: ft=c:et:sw=4:ts=8:sts=4:tw=80

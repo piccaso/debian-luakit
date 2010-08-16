@@ -36,20 +36,27 @@ key_press_cb(GtkWidget *win, GdkEventKey *ev, widget_t *w)
     luaH_modifier_table_push(L, ev->state);
     luaH_keystr_push(L, ev->keyval);
     ret = luaH_object_emit_signal(L, -3, "key-press", 2, 1);
-    lua_pop(L, 1 + ret);
+    lua_pop(L, ret + 1);
     return ret ? TRUE : FALSE;
 }
 
 gboolean
-button_press_cb(GtkWidget *win, GdkEventButton *ev, widget_t *w)
+button_release_cb(GtkWidget *win, GdkEventButton *ev, widget_t *w)
 {
     (void) win;
-    if (ev->type != GDK_BUTTON_PRESS)
-        return FALSE;
+    gint ret;
     lua_State *L = globalconf.L;
     luaH_object_push(L, w->ref);
-    luaH_object_emit_signal(L, -1, "clicked", 0, 0);
-    lua_pop(L, 1);
+    luaH_modifier_table_push(L, ev->state);
+    lua_pushinteger(L, ev->button);
+    ret = luaH_object_emit_signal(L, -3, "button-release", 2, 1);
+    /* User responded with TRUE, so do not propagate event any further */
+    if (ret && luaH_checkboolean(L, -1)) {
+        lua_pop(L, ret + 1);
+        return TRUE;
+    }
+    lua_pop(L, ret + 1);
+    /* propagate event further */
     return FALSE;
 }
 
@@ -102,9 +109,7 @@ parent_set_cb(GtkWidget *widget, GtkObject *old, widget_t *w)
     GtkContainer *new;
     g_object_get(G_OBJECT(widget), "parent", &new, NULL);
     luaH_object_push(L, w->ref);
-    if (new)
-        parent = g_object_get_data(G_OBJECT(new), "widget");
-    if (parent)
+    if (new && (parent = g_object_get_data(G_OBJECT(new), "widget")))
         luaH_object_push(L, parent->ref);
     else
         lua_pushnil(L);
@@ -185,8 +190,17 @@ luaH_widget_destroy(lua_State *L)
     if (w->destructor)
         w->destructor(w);
     w->destructor = NULL;
+    debug("unreffing widget %p of type '%s'", w, w->info->name);
     luaH_object_unref(L, w->ref);
     return 0;
+}
+
+void
+widget_destructor(widget_t *w)
+{
+    debug("destroying widget %p of type '%s'", w, w->info->name);
+    gtk_widget_destroy(GTK_WIDGET(w->widget));
+    w->widget = NULL;
 }
 
 // vim: ft=c:et:sw=4:ts=8:sts=4:tw=80

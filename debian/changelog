@@ -1,3 +1,11 @@
+luakit (0~20100813-4) unstable; urgency=low
+
+  * New upstream development snapshot.
+  * Add Debian PTS/BTS/Packages websearch shortcuts from
+    Kumar Appaiah.  closes: #593307.
+
+ -- Clint Adams <schizo@debian.org>  Tue, 17 Aug 2010 09:03:16 -0700
+
 luakit (0~20100813-3) unstable; urgency=low
 
   * New upstream development snapshot.

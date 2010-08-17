@@ -90,6 +90,8 @@ search_engines = {
     google      = "http://google.com/search?q={0}",
     wikipedia   = "http://en.wikipedia.org/wiki/Special:Search?search={0}",
     debbugs     = "http://bugs.debian.org/{0}",
+    dpkg        =  "http://packages.debian.org/{0}",
+    dpts        =  "http://packages.qa.debian.org/{0}",
     imdb        = "http://imdb.com/find?s=all&q={0}",
     sourceforge = "http://sf.net/search/?words={0}",
 }
@@ -162,6 +164,11 @@ mode_binds = {
         bind.buf("^t$",                     function (w, c) w:enter_cmd(":tabopen ") end),
         bind.buf("^T$",                     function (w, c) w:enter_cmd(":tabopen " .. w:get_current().uri) end),
         bind.buf("^,g$",                    function (w, c) w:enter_cmd(":websearch google ") end),
+
+        -- Debian search shorcut access
+        bind.buf("^\\dbug$",                function (w, c) w:enter_cmd(":websearch debbugs ") end),
+        bind.buf("^\\dpts$",                function (w, c) w:enter_cmd(":websearch dpts ") end),
+        bind.buf("^\\dpkg$",                function (w, c) w:enter_cmd(":websearch dpkg ") end),
 
         -- Searching
         bind.key({},          "/",          function (w) w:start_search(true)  end),

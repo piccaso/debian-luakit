@@ -165,6 +165,11 @@ mode_binds = {
         bind.buf("^T$",                     function (w, c) w:enter_cmd(":tabopen " .. w:get_current().uri) end),
         bind.buf("^,g$",                    function (w, c) w:enter_cmd(":websearch google ") end),
 
+        -- Debian search shorcut access
+        bind.buf("^\\dbug$",                function (w, c) w:enter_cmd(":websearch debbugs ") end),
+        bind.buf("^\\dpts$",                function (w, c) w:enter_cmd(":websearch dpts ") end),
+        bind.buf("^\\dpkg$",                function (w, c) w:enter_cmd(":websearch dpkg ") end),
+
         -- Searching
         bind.key({},          "/",          function (w) w:start_search(true)  end),
         bind.key({},          "?",          function (w) w:start_search(false) end),

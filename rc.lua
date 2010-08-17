@@ -90,6 +90,8 @@ search_engines = {
     google      = "http://google.com/search?q={0}",
     wikipedia   = "http://en.wikipedia.org/wiki/Special:Search?search={0}",
     debbugs     = "http://bugs.debian.org/{0}",
+    dpkg        =  "http://packages.debian.org/{0}",
+    dpts        =  "http://packages.qa.debian.org/{0}",
     imdb        = "http://imdb.com/find?s=all&q={0}",
     sourceforge = "http://sf.net/search/?words={0}",
 }

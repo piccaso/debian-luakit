@@ -22,6 +22,7 @@
 #include <gtk/gtk.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <webkit/webkit.h>
 #include "common/util.h"
 #include "common/lualib.h"
 #include "luakit.h"
@@ -419,16 +420,19 @@ luaH_luakit_spawn_sync(lua_State *L)
     gchar *stdout = NULL;
     gchar *stderr = NULL;
     gint rv;
-    __sighandler_t chldhandler;
+    struct sigaction sigact;
+    struct sigaction oldact;
 
     const gchar *command = luaL_checkstring(L, 1);
 
     /* Note: we have to temporarily clear the SIGCHLD handler. Otherwise
      * g_spawn_sync wouldn't be able to read subprocess' return value. */
-    if (SIG_ERR == (chldhandler = signal(SIGCHLD, SIG_DFL)))
+    sigact.sa_handler=SIG_DFL;
+    sigemptyset (&sigact.sa_mask);
+    if (sigaction(SIGCHLD, &sigact, &oldact))
         fatal("Can't clear SIGCHLD handler");
     g_spawn_command_line_sync(command, &stdout, &stderr, &rv, &e);
-    if(signal(SIGCHLD, chldhandler) == SIG_ERR)
+    if (sigaction(SIGCHLD, &oldact, NULL))
         fatal("Can't restore SIGCHLD handler");
 
     if(e)
@@ -497,6 +501,10 @@ luaH_luakit_index(lua_State *L)
       PS_CASE(DATA_DIR,         globalconf.data_dir)
       /* push boolean properties */
       PB_CASE(VERBOSE,          globalconf.verbose)
+      /* push integer properties */
+      PI_CASE(WEBKIT_MAJOR_VERSION, webkit_major_version())
+      PI_CASE(WEBKIT_MINOR_VERSION, webkit_minor_version())
+      PI_CASE(WEBKIT_MICRO_VERSION, webkit_micro_version())
 
       case L_TK_WINDOWS:
         lua_newtable(L);
@@ -509,6 +517,10 @@ luaH_luakit_index(lua_State *L)
 
       case L_TK_INSTALL_PATH:
         lua_pushliteral(L, LUAKIT_INSTALL_PATH);
+        return 1;
+
+      case L_TK_VERSION:
+        lua_pushliteral(L, VERSION);
         return 1;
 
       default:

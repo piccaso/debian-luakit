@@ -1,3 +1,10 @@
+luakit (0~20100813-5) unstable; urgency=low
+
+  * New upstream development snapshot.
+  * Add /usr/bin/luakit to x-www-browser alternative.  closes: #593418.
+
+ -- Clint Adams <schizo@debian.org>  Wed, 18 Aug 2010 10:15:54 -0700
+
 luakit (0~20100813-4) unstable; urgency=low
 
   * New upstream development snapshot.

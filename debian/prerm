@@ -1,0 +1,14 @@
+#!/bin/sh -e
+
+case "$1" in
+  (remove|deconfigure)
+  update-alternatives --remove x-www-browser /usr/bin/luakit
+  ;;
+  (upgrade|failed-upgrade)
+  ;;
+  (*)
+  echo "prerm called with unknown argument \`$1'" >&2
+  ;;
+esac
+
+exit 0

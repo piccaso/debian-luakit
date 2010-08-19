@@ -33,6 +33,13 @@ MAX_SRCH_HISTORY = 100
 -- Setup download directory
 DOWNLOAD_DIR = luakit.get_special_dir("DOWNLOAD") or (os.getenv("HOME") .. "/downloads")
 
+-- Fake the enum here
+cookie_policy = {
+	["always"] = 0,
+	["never"] = 1,
+	["no_third_party"] = 2,
+}
+
 -- Per-domain webview properties
 domain_props = { --[[
     ["all"] = {
@@ -40,10 +47,14 @@ domain_props = { --[[
         ["enable-plugins"]          = false,
         ["enable-private-browsing"] = false,
         ["user-stylesheet-uri"]     = "",
+        ["accept-policy"]           = cookie_policy[never],
     },
     ["youtube.com"] = {
         ["enable-scripts"] = true,
         ["enable-plugins"] = true,
+    },
+    ["lwn.net"] = {
+	["accept-policy"] = cookie_policy[no_third_party],
     },
     ["forums.archlinux.org"] = {
         ["user-stylesheet-uri"]     = luakit.data_dir .. "/styles/dark.css",

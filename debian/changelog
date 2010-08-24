@@ -1,3 +1,11 @@
+luakit (0~20100813-7) unstable; urgency=low
+
+  * New upstream development snapshot.
+  * Add /etc/xdg/luakit/{binds,globals,theme,webview,window}.lua
+    as conffiles.
+
+ -- Clint Adams <schizo@debian.org>  Tue, 24 Aug 2010 16:24:18 -0400
+
 luakit (0~20100813-6) unstable; urgency=low
 
   * New upstream development snapshot.

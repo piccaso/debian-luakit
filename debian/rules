@@ -52,9 +52,10 @@ binary-arch:	checkroot build install
 	gzip -9f `find debian/$(package)/usr/share/doc -type f ! -name "copyright"`
 	dpkg-shlibdeps -Tdebian/substvars debian/$(package)/usr/bin/luakit
 	dpkg-gencontrol -ldebian/changelog -isp -p$(package) -Tdebian/substvars -Pdebian/luakit
-	cd debian/$(package) && find * -type f ! -regex '^DEBIAN/.*' ! -path "etc/xdg/$(package)/rc.lua" -print0 | xargs -r0 md5sum > DEBIAN/md5sums
+	cd debian/$(package) && find * -type f ! -regex '^DEBIAN/.*' ! -path "etc/xdg/$(package)/*.lua" -print0 | xargs -r0 md5sum > DEBIAN/md5sums
 
-	chmod a-x debian/$(package)/usr/share/luakit/lib/*.lua
+	chmod a-x debian/$(package)/etc/xdg/luakit/*.lua
+	chmod a-x debian/$(package)/usr/share/luakit/lib/lousy/*.lua
 	chown -R root:root debian/$(package)
 	chmod -R go=rX debian/$(package)
 

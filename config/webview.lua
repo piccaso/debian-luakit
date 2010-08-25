@@ -132,6 +132,18 @@ local function attach_webview_signals(view, w)
         return w:new_tab()
     end)
 
+    view:add_signal("populate-popup", function (v)
+        return {
+            true,
+            { "_Toggle Source", function () w:toggle_source() end },
+            { "_Zoom", {
+                { "Zoom _In",    function () w:zoom_in(globals.zoom_step) end },
+                { "Zoom _Out",   function () w:zoom_out(globals.zoom_step) end },
+                true,
+                { "Zoom _Reset", function () w:zoom_reset() end }, }, },
+        }
+    end)
+
     view:add_signal("property::progress", function (v)
         if w:is_current(v) then
             w:update_progress(v)
@@ -142,6 +154,11 @@ local function attach_webview_signals(view, w)
         if w:is_current(v) then
             w:update_scroll(v)
         end
+    end)
+
+    view:add_signal("resource-request-starting", function(v, uri)
+        if luakit.verbose then print("Requesting: "..uri) end
+        -- Return false to cancel the request.
     end)
 end
 
@@ -175,7 +192,7 @@ webview.methods = {
         if not fh then return error(err) end
         local script = fh:read("*a")
         fh:close()
-        return w:eval_js(script, file, view)
+        return view:eval_js(script, file)
     end,
 
     -- close the current tab

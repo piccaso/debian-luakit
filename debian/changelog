@@ -1,3 +1,10 @@
+luakit (0~20100813-8) unstable; urgency=low
+
+  * New upstream development snapshot.
+  * Fix typo in installation of postinst.
+
+ -- Clint Adams <schizo@debian.org>  Wed, 25 Aug 2010 11:24:41 -0400
+
 luakit (0~20100813-7) unstable; urgency=low
 
   * New upstream development snapshot.

@@ -3,7 +3,7 @@ Section: web
 Priority: optional
 Maintainer: Clint Adams <schizo@debian.org>
 Standards-Version: 3.9.1
-Build-Depends: liblua5.1-0-dev, libgtk2.0-dev, libwebkit-dev, gperf
+Build-Depends: liblua5.1-0-dev, libgtk2.0-dev, libwebkit-dev, gperf, help2man
 Homepage: http://www.luakit.org/
 Vcs-Git: git://git.debian.org/collab-maint/luakit.git
 Vcs-Browser: http://git.debian.org/?p=collab-maint/luakit.git;a=summary

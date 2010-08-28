@@ -1,3 +1,10 @@
+luakit (0~20100813-10) unstable; urgency=low
+
+  * New upstream development snapshot.
+  * Add /etc/xdg/luakit/modes.lua as a conffile.
+
+ -- Clint Adams <schizo@debian.org>  Sat, 28 Aug 2010 17:39:26 -0400
+
 luakit (0~20100813-9) unstable; urgency=low
 
   * New upstream development snapshot.

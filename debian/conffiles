@@ -1,6 +1,7 @@
 /etc/xdg/luakit/rc.lua
 /etc/xdg/luakit/binds.lua
 /etc/xdg/luakit/globals.lua
+/etc/xdg/luakit/modes.lua
 /etc/xdg/luakit/theme.lua
 /etc/xdg/luakit/webview.lua
 /etc/xdg/luakit/window.lua

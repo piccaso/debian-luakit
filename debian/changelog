@@ -1,3 +1,12 @@
+luakit (2010.08.30-2) unstable; urgency=low
+
+  * Patch from Kumar Appaiah to add AppleWebKit and Webkit-build
+    specific version to user agent string, thereby encouraging
+    websites like Flickr and Google Maps to behave in a more
+    effective manner.  closes: #596653, #595289.
+
+ -- Clint Adams <schizo@debian.org>  Sat, 18 Sep 2010 10:39:05 -0400
+
 luakit (2010.08.30-1) unstable; urgency=low
 
   * New upstream release.

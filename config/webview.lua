@@ -71,7 +71,7 @@ webview.init_funcs = {
     link_hover_display = function (view, w)
         view:add_signal("link-hover", function (v, link)
             if w:is_current(v) and link then
-                w.sbar.l.uri.text = "Link: " .. lousy.util.escape(link)
+                w:update_uri(v, nil, link)
             end
         end)
         view:add_signal("link-unhover", function (v)
@@ -120,7 +120,7 @@ webview.init_funcs = {
     -- Domain properties
     domain_properties = function (view, w)
         view:add_signal("load-status", function (v, status)
-            if status ~= "provisional" then return end
+            if status ~= "committed" then return end
             local domain = (v.uri and string.match(v.uri, "^%a+://([^/]*)/?")) or "about:blank"
             if string.match(domain, "^www.") then domain = string.sub(domain, 5) end
             local props = lousy.util.table.join(domain_props.all or {}, domain_props[domain] or {})
@@ -170,15 +170,7 @@ webview.init_funcs = {
     download_request = function (view, w)
         -- 'link' contains the download link
         -- 'filename' contains the suggested filename (from server or webkit)
-        view:add_signal("download-request", function (v, link, filename)
-            if not filename then return end
-            -- Make download dir
-            os.execute(string.format("mkdir -p %q", globals.download_dir))
-            local dl = globals.download_dir .. "/" .. filename
-            local wget = string.format("wget -q %q -O %q", link, dl)
-            info("Launching: %s", wget)
-            luakit.spawn(wget)
-        end)
+        view:add_signal("download-request", function (v, link, filename) w:download(link, filename) end)
     end,
 
     -- Creates context menu popup from table (and nested tables).
@@ -189,10 +181,10 @@ webview.init_funcs = {
                 true,
                 { "_Toggle Source", function () w:toggle_source() end },
                 { "_Zoom", {
-                    { "Zoom _In",    function () w:zoom_in(globals.zoom_step) end },
-                    { "Zoom _Out",   function () w:zoom_out(globals.zoom_step) end },
+                    { "Zoom _In",    function () w:zoom_in()  end },
+                    { "Zoom _Out",   function () w:zoom_out() end },
                     true,
-                    { "Zoom _Reset", function () w:zoom_reset() end }, }, },
+                    { "Zoom _Reset", function () w:zoom_set() end }, }, },
             }
         end)
     end,
@@ -200,7 +192,7 @@ webview.init_funcs = {
     -- Action to take on resource request.
     resource_request_decision = function (view, w)
         view:add_signal("resource-request-starting", function(v, uri)
-            if luakit.verbose then print("Requesting: "..uri) end
+            info("Requesting: %s", uri)
             -- Return false to cancel the request.
         end)
     end,
@@ -212,8 +204,15 @@ webview.init_funcs = {
 -- as the first argument. All methods must take `view` & `w` as the first two
 -- arguments.
 webview.methods = {
-    reload = function (view, w)
-        view:reload()
+    stop   = function (view) view:stop() end,
+
+    -- Reload with or without ignoring cache
+    reload = function (view, w, bypass_cache)
+        if bypass_cache then
+            view:reload_bypass_cache()
+        else
+            view:reload()
+        end
     end,
 
     -- Property functions
@@ -226,26 +225,17 @@ webview.methods = {
     end,
 
     -- evaluate javascript code and return string result
-    eval_js = function (view, w, script, file)
-        return view:eval_js(script, file or "(inline)")
+    eval_js = function (view, w, script, file, on_focused)
+        return view:eval_js(script, file or "(inline)", not not on_focused)
     end,
 
     -- evaluate javascript code from file and return string result
-    eval_js_from_file = function (view, w, file)
+    eval_js_from_file = function (view, w, file, on_focused)
         local fh, err = io.open(file)
         if not fh then return error(err) end
         local script = fh:read("*a")
         fh:close()
-        return view:eval_js(script, file)
-    end,
-
-    -- close the current tab
-    close_tab = function (view, w)
-        w.tabs:remove(view)
-        view.uri = "about:blank"
-        view:destroy()
-        w:update_tab_count()
-        w:update_tab_labels()
+        return view:eval_js(script, file, not not on_focused)
     end,
 
     -- Toggle source view
@@ -255,27 +245,28 @@ webview.methods = {
     end,
 
     -- Zoom functions
-    zoom_in = function (view, w, step)
+    zoom_in = function (view, w, step, full_zoom)
+        view:set_prop("full-content-zoom", not not full_zoom)
+        step = step or globals.zoom_step or 0.1
         view:set_prop("zoom-level", view:get_prop("zoom-level") + step)
     end,
 
-    zoom_out = function (view, w, step)
-        local value = view:get_prop("zoom-level") - step
-        view:set_prop("zoom-level", ((value > 0.01) and value) or 0.01)
+    zoom_out = function (view, w, step, full_zoom)
+        view:set_prop("full-content-zoom", not not full_zoom)
+        step = step or globals.zoom_step or 0.1
+        view:set_prop("zoom-level", math.max(0.01, view:get_prop("zoom-level") - step))
     end,
 
-    zoom_reset = function (view, w)
-        view:set_prop("zoom-level", 1.0)
+    zoom_set = function (view, w, level, full_zoom)
+        view:set_prop("full-content-zoom", not not full_zoom)
+        view:set_prop("zoom-level", level or 1.0)
     end,
 
     -- Searching functions
     start_search = function (view, w, text)
-        if string.match(text, "^[\?\/]") then
+        if string.match(text, "^[?/]") then
             w:set_mode("search")
-            local i = w.ibar.input
-            i.text = text
-            i:focus()
-            i:set_position(-1)
+            w:set_input(text)
         else
             return error("invalid search term, must start with '?' or '/'")
         end
@@ -345,7 +336,7 @@ webview.methods = {
     end,
 }
 
-function webview.new(w, uri)
+function webview.new(w)
     local view = widget{type = "webview"}
 
     -- Call webview init functions
@@ -353,7 +344,6 @@ function webview.new(w, uri)
         func(view, w)
     end
 
-    if uri then view.uri = uri end
     view.show_scrollbars = false
     return view
 end

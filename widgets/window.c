@@ -39,7 +39,7 @@ destroy_cb(GtkObject *win, widget_t *w)
 static gint
 luaH_window_index(lua_State *L, luakit_token_t token)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
 
     switch(token)
     {
@@ -60,7 +60,7 @@ static gint
 luaH_window_newindex(lua_State *L, luakit_token_t token)
 {
     size_t len;
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
 
     switch(token)
     {
@@ -107,7 +107,7 @@ widget_window(widget_t *w)
       NULL);
 
     gtk_widget_show(w->widget);
-    gdk_window_set_events(GTK_WIDGET(w->widget)->window, GDK_ALL_EVENTS_MASK);
+    gdk_window_set_events(gtk_widget_get_window(w->widget), GDK_ALL_EVENTS_MASK);
 
     /* add to global windows list */
     g_ptr_array_add(globalconf.windows, w);

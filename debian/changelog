@@ -1,3 +1,11 @@
+luakit (2010.09.24-1) unstable; urgency=low
+
+  * New upstream release.
+    - Drop build-dependency on gperf.
+    - Add build dependency on lua5.1.
+
+ -- Clint Adams <schizo@debian.org>  Fri, 24 Sep 2010 06:31:14 -0400
+
 luakit (2010.08.30-2) unstable; urgency=low
 
   * Patch from Kumar Appaiah to add AppleWebKit and Webkit-build

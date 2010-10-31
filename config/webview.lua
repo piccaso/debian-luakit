@@ -9,11 +9,7 @@ webview = {}
 webview.init_funcs = {
     -- Set global properties
     set_global_props = function (view, w)
-        -- Set proxy options
-        local proxy = globals.http_proxy or os.getenv("http_proxy")
-        if proxy then view:set_prop('proxy-uri', proxy) end
         view:set_prop('user-agent', globals.useragent)
-
         -- Set ssl options
         if globals.ssl_strict ~= nil then
             view:set_prop('ssl-strict', globals.ssl_strict)
@@ -29,7 +25,7 @@ webview.init_funcs = {
     -- Update window and tab titles
     title_update = function (view, w)
         view:add_signal("property::title", function (v)
-            w:update_tab_labels()
+            w:update_tablist()
             if w:is_current(v) then
                 w:update_win_title()
             end
@@ -39,9 +35,18 @@ webview.init_funcs = {
     -- Update uri label in statusbar
     uri_update = function (view, w)
         view:add_signal("property::uri", function (v)
-            w:update_tab_labels()
+            w:update_tablist()
             if w:is_current(v) then
                 w:update_uri(v)
+            end
+        end)
+    end,
+
+    -- Update tab titles
+    tablist_update = function (view, w)
+        view:add_signal("load-status", function (v, status)
+            if status == "provisional" or status == "finished" or status == "failed" then
+                w:update_tablist()
             end
         end)
     end,
@@ -113,7 +118,9 @@ webview.init_funcs = {
     -- Reset the mode on navigation
     mode_reset_on_nav = function (view, w)
         view:add_signal("load-status", function (v, status)
-            if w:is_current(v) and status == "provisional" then w:set_mode() end
+            if w:is_current(v) and status == "provisional" then
+                if w:is_mode("insert") or w:is_mode("command") then w:set_mode() end
+            end
         end)
     end,
 
@@ -295,12 +302,17 @@ webview.methods = {
             forward = (s.forward == forward)
         end
 
-        view:search(text, false, forward, true);
+        s.searched = true
+        s.ret = view:search(text, text ~= string.lower(text), forward, true);
     end,
 
-    clear_search = function (view, w)
+    clear_search = function (view, w, clear_state)
         view:clear_search()
-        w.search_state = {}
+        if clear_state ~= false then
+            w.search_state = {}
+        else
+            w.search_state.searched = false
+        end
     end,
 
     -- Webview scroll functions

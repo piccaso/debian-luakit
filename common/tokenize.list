@@ -62,6 +62,7 @@ select_region
 selectable
 set_alignment
 set_child
+set_default_size
 set_padding
 set_prop
 set_scroll_horiz
@@ -96,3 +97,4 @@ webkit_user_agent_minor_version
 webview
 window
 windows
+xid

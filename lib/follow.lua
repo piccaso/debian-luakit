@@ -490,7 +490,7 @@ new_mode("follow", {
         local js_blocks = {}
         for k, v in pairs(follow.get_theme()) do
             if type(v) == "number" then
-                table.insert(js_blocks, string.format("%s = %f;", k, v))
+                table.insert(js_blocks, string.format("%s = %s;", k, lousy.util.ntos(v)))
             else
                 table.insert(js_blocks, string.format("%s = %q;", k, v))
             end
@@ -536,3 +536,5 @@ new_mode("follow", {
         end
     end,
 })
+
+-- vim: et:sw=4:ts=8:sts=4:tw=80

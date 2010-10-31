@@ -1,3 +1,9 @@
+luakit (2010.09.24+halloween-1) unstable; urgency=low
+
+  * New upstream development snapshot.
+
+ -- Clint Adams <schizo@debian.org>  Sun, 31 Oct 2010 11:13:58 -0400
+
 luakit (2010.09.24-1) unstable; urgency=low
 
   * New upstream release.

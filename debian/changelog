@@ -1,3 +1,9 @@
+luakit (2010.09.24+halloween-2) unstable; urgency=low
+
+  * Add dependency on liblua5.1-filesystem0.  closes: #602046.
+
+ -- Clint Adams <schizo@debian.org>  Wed, 03 Nov 2010 16:01:51 -0400
+
 luakit (2010.09.24+halloween-1) unstable; urgency=low
 
   * New upstream development snapshot.

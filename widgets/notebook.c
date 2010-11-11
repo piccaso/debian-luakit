@@ -19,18 +19,13 @@
  *
  */
 
-/* TODO
- *  - In the notebook destructor function detach all child widgets
- *  - Add `get_children()` method which returns a table of the child widgets
- */
-
 #include "luah.h"
 #include "widgets/common.h"
 
 static gint
 luaH_notebook_current(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     gint n = gtk_notebook_get_n_pages(GTK_NOTEBOOK(w->widget));
     if (n == 1)
         lua_pushnumber(L, 1);
@@ -43,7 +38,7 @@ luaH_notebook_current(lua_State *L)
 static gint
 luaH_notebook_atindex(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     gint i = luaL_checknumber(L, 2);
     /* correct index */
     if (i != -1) i--;
@@ -60,11 +55,9 @@ luaH_notebook_atindex(lua_State *L)
 static gint
 luaH_notebook_indexof(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
-    widget_t *child = luaH_checkudata(L, 2, &widget_class);
-
+    widget_t *w = luaH_checkwidget(L, 1);
+    widget_t *child = luaH_checkwidget(L, 2);
     gint i = gtk_notebook_page_num(GTK_NOTEBOOK(w->widget), child->widget);
-
     /* return index or nil */
     if (!++i) return 0;
     lua_pushnumber(L, i);
@@ -74,8 +67,8 @@ luaH_notebook_indexof(lua_State *L)
 static gint
 luaH_notebook_remove(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
-    widget_t *child = luaH_checkudata(L, 2, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
+    widget_t *child = luaH_checkwidget(L, 2);
     gint i = gtk_notebook_page_num(GTK_NOTEBOOK(w->widget), child->widget);
 
     if (i == -1)
@@ -91,8 +84,8 @@ luaH_notebook_remove(lua_State *L)
 static gint
 luaH_notebook_insert(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
-    widget_t *child = luaH_checkudata(L, 3, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
+    widget_t *child = luaH_checkwidget(L, 2);
     gint i = luaL_checknumber(L, 2);
     /* correct index */
     if (i != -1) i--;
@@ -110,8 +103,8 @@ luaH_notebook_insert(lua_State *L)
 static gint
 luaH_notebook_append(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
-    widget_t *child = luaH_checkudata(L, 2, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
+    widget_t *child = luaH_checkwidget(L, 2);
     gint i = gtk_notebook_append_page(GTK_NOTEBOOK(w->widget),
         child->widget, NULL);
 
@@ -125,7 +118,7 @@ luaH_notebook_append(lua_State *L)
 static gint
 luaH_notebook_count(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     lua_pushnumber(L, gtk_notebook_get_n_pages(GTK_NOTEBOOK(w->widget)));
     return 1;
 }
@@ -134,8 +127,8 @@ static gint
 luaH_notebook_set_title(lua_State *L)
 {
     size_t len;
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
-    widget_t *child = luaH_checkudata(L, 2, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
+    widget_t *child = luaH_checkwidget(L, 2);
     const gchar *title = luaL_checklstring(L, 3, &len);
     gtk_notebook_set_tab_label_text(GTK_NOTEBOOK(w->widget),
         child->widget, title);
@@ -145,8 +138,8 @@ luaH_notebook_set_title(lua_State *L)
 static gint
 luaH_notebook_get_title(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
-    widget_t *child = luaH_checkudata(L, 2, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
+    widget_t *child = luaH_checkwidget(L, 2);
     lua_pushstring(L, gtk_notebook_get_tab_label_text(
         GTK_NOTEBOOK(w->widget), child->widget));
     return 1;
@@ -155,7 +148,7 @@ luaH_notebook_get_title(lua_State *L)
 static gint
 luaH_notebook_switch(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     gint i = luaL_checknumber(L, 2);
     /* correct index */
     if (i != -1) i--;
@@ -165,9 +158,22 @@ luaH_notebook_switch(lua_State *L)
 }
 
 static gint
+luaH_notebook_reorder(lua_State *L)
+{
+    widget_t *w = luaH_checkwidget(L, 1);
+    widget_t *child = luaH_checkwidget(L, 2);
+    gint i = luaL_checknumber(L, 3);
+    /* correct lua index */
+    if (i != -1) i--;
+    gtk_notebook_reorder_child(GTK_NOTEBOOK(w->widget), child->widget, i);
+    lua_pushnumber(L, gtk_notebook_page_num(GTK_NOTEBOOK(w->widget), child->widget));
+    return 1;
+}
+
+static gint
 luaH_notebook_index(lua_State *L, luakit_token_t token)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
 
     switch(token)
     {
@@ -184,6 +190,11 @@ luaH_notebook_index(lua_State *L, luakit_token_t token)
       PF_CASE(REMOVE,       luaH_notebook_remove)
       PF_CASE(SET_TITLE,    luaH_notebook_set_title)
       PF_CASE(SWITCH,       luaH_notebook_switch)
+      PF_CASE(REORDER,      luaH_notebook_reorder)
+
+      /* push container class methods */
+      PF_CASE(GET_CHILDREN, luaH_widget_get_children)
+
       /* push boolean properties */
       PB_CASE(SHOW_TABS,    gtk_notebook_get_show_tabs(GTK_NOTEBOOK(w->widget)))
       PB_CASE(SHOW_BORDER,  gtk_notebook_get_show_border(GTK_NOTEBOOK(w->widget)))
@@ -197,7 +208,7 @@ luaH_notebook_index(lua_State *L, luakit_token_t token)
 static gint
 luaH_notebook_newindex(lua_State *L, luakit_token_t token)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
 
     switch(token)
     {
@@ -259,6 +270,20 @@ switch_cb(GtkNotebook *n, GtkNotebookPage *p, guint i, widget_t *w)
     lua_pop(L, 1);
 }
 
+static void
+reorder_cb(GtkNotebook *n, GtkWidget *widget, guint i, widget_t *w)
+{
+    (void) n;
+    widget_t *child = g_object_get_data(G_OBJECT(widget), "lua_widget");
+
+    lua_State *L = globalconf.L;
+    luaH_object_push(L, w->ref);
+    luaH_object_push(L, child->ref);
+    lua_pushnumber(L, i + 1);
+    luaH_object_emit_signal(L, -3, "page-reordered", 2, 0);
+    lua_pop(L, 1);
+}
+
 widget_t *
 widget_notebook(widget_t *w)
 {
@@ -272,14 +297,15 @@ widget_notebook(widget_t *w)
     gtk_notebook_set_show_border(GTK_NOTEBOOK(w->widget), FALSE);
     gtk_notebook_set_scrollable(GTK_NOTEBOOK(w->widget), TRUE);
 
-    g_object_connect((GObject*)w->widget,
-      "signal::focus-in-event",    (GCallback)focus_cb,        w,
-      "signal::focus-out-event",   (GCallback)focus_cb,        w,
-      "signal::key-press-event",   (GCallback)key_press_cb,    w,
-      "signal::page-added",        (GCallback)page_added_cb,   w,
-      "signal::page-removed",      (GCallback)page_removed_cb, w,
-      "signal::switch-page",       (GCallback)switch_cb,       w,
-      "signal::parent-set",        (GCallback)parent_set_cb,   w,
+    g_object_connect(G_OBJECT(w->widget),
+      "signal::focus-in-event",    G_CALLBACK(focus_cb),        w,
+      "signal::focus-out-event",   G_CALLBACK(focus_cb),        w,
+      "signal::key-press-event",   G_CALLBACK(key_press_cb),    w,
+      "signal::page-added",        G_CALLBACK(page_added_cb),   w,
+      "signal::page-removed",      G_CALLBACK(page_removed_cb), w,
+      "signal::page-reordered",    G_CALLBACK(reorder_cb),      w,
+      "signal::parent-set",        G_CALLBACK(parent_set_cb),   w,
+      "signal::switch-page",       G_CALLBACK(switch_cb),       w,
       NULL);
 
     gtk_widget_show(w->widget);

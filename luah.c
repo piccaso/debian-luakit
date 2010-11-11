@@ -383,12 +383,39 @@ luaH_luakit_set_selection(lua_State *L)
     return 0;
 }
 
+/* Escapes a string for use in a URI.
+ * \param L The Lua VM state.
+ * \return The number of elements pushed on stack (1).
+ */
+static gint
+luaH_luakit_uri_encode(lua_State *L)
+{
+    const gchar *string = luaL_checkstring(L, 1);
+    gchar *res = g_uri_escape_string(string, NULL, false);
+    lua_pushstring(L, res);
+    g_free(res);
+    return 1;
+}
+
+/* Unescapes a whole escaped string.
+ * \param L The Lua VM state.
+ * \return The number of elements pushed on stack (1).
+ */
+static gint
+luaH_luakit_uri_decode(lua_State *L)
+{
+    const gchar *string = luaL_checkstring(L, 1);
+    gchar *res = g_uri_unescape_string(string, NULL);
+    lua_pushstring(L, res);
+    g_free(res);
+    return 1;
+}
+
 static gint
 luaH_luakit_get_special_dir(lua_State *L)
 {
-    size_t len;
-    const gchar *name = luaL_checklstring(L, 1, &len);
-    luakit_token_t token = l_tokenize(name, len);
+    const gchar *name = luaL_checkstring(L, 1);
+    luakit_token_t token = l_tokenize(name);
     GUserDirectory atom;
     /* match token with G_USER_DIR_* atom */
     switch(token) {
@@ -417,8 +444,8 @@ static gint
 luaH_luakit_spawn_sync(lua_State *L)
 {
     GError *e = NULL;
-    gchar *stdout = NULL;
-    gchar *stderr = NULL;
+    gchar *_stdout = NULL;
+    gchar *_stderr = NULL;
     gint rv;
     struct sigaction sigact;
     struct sigaction oldact;
@@ -429,9 +456,10 @@ luaH_luakit_spawn_sync(lua_State *L)
      * g_spawn_sync wouldn't be able to read subprocess' return value. */
     sigact.sa_handler=SIG_DFL;
     sigemptyset (&sigact.sa_mask);
+    sigact.sa_flags=0;
     if (sigaction(SIGCHLD, &sigact, &oldact))
         fatal("Can't clear SIGCHLD handler");
-    g_spawn_command_line_sync(command, &stdout, &stderr, &rv, &e);
+    g_spawn_command_line_sync(command, &_stdout, &_stderr, &rv, &e);
     if (sigaction(SIGCHLD, &oldact, NULL))
         fatal("Can't restore SIGCHLD handler");
 
@@ -442,10 +470,10 @@ luaH_luakit_spawn_sync(lua_State *L)
         lua_error(L);
     }
     lua_pushinteger(L, WEXITSTATUS(rv));
-    lua_pushstring(L, stdout);
-    lua_pushstring(L, stderr);
-    g_free(stdout);
-    g_free(stderr);
+    lua_pushstring(L, _stdout);
+    lua_pushstring(L, _stderr);
+    g_free(_stdout);
+    g_free(_stderr);
     return 3;
 }
 
@@ -468,6 +496,14 @@ luaH_luakit_spawn(lua_State *L)
     return 0;
 }
 
+static gint
+luaH_exec(lua_State *L)
+{
+    const gchar *cmd = luaL_checkstring(L, 1);
+    l_exec(cmd);
+    return 0;
+}
+
 /* luakit global table.
  * \param L The Lua VM state.
  * \return The number of elements pushed on stack.
@@ -482,10 +518,9 @@ luaH_luakit_index(lua_State *L)
     if(luaH_usemetatable(L, 1, 2))
         return 1;
 
-    size_t len;
     widget_t *w;
-    const gchar *prop = luaL_checklstring(L, 2, &len);
-    luakit_token_t token = l_tokenize(prop, len);
+    const gchar *prop = luaL_checkstring(L, 2);
+    luakit_token_t token = l_tokenize(prop);
 
     switch(token) {
 
@@ -495,16 +530,23 @@ luaH_luakit_index(lua_State *L)
       PF_CASE(SPAWN_SYNC,       luaH_luakit_spawn_sync)
       PF_CASE(GET_SELECTION,    luaH_luakit_get_selection)
       PF_CASE(SET_SELECTION,    luaH_luakit_set_selection)
+      PF_CASE(EXEC,             luaH_exec)
+      PF_CASE(URI_ENCODE,       luaH_luakit_uri_encode)
+      PF_CASE(URI_DECODE,       luaH_luakit_uri_decode)
       /* push string properties */
       PS_CASE(CACHE_DIR,        globalconf.cache_dir)
       PS_CASE(CONFIG_DIR,       globalconf.config_dir)
       PS_CASE(DATA_DIR,         globalconf.data_dir)
+      PS_CASE(EXECPATH,         globalconf.execpath)
+      PS_CASE(CONFPATH,         globalconf.confpath)
       /* push boolean properties */
       PB_CASE(VERBOSE,          globalconf.verbose)
       /* push integer properties */
       PI_CASE(WEBKIT_MAJOR_VERSION, webkit_major_version())
       PI_CASE(WEBKIT_MINOR_VERSION, webkit_minor_version())
       PI_CASE(WEBKIT_MICRO_VERSION, webkit_micro_version())
+      PI_CASE(WEBKIT_USER_AGENT_MAJOR_VERSION, WEBKIT_USER_AGENT_MAJOR_VERSION)
+      PI_CASE(WEBKIT_USER_AGENT_MINOR_VERSION, WEBKIT_USER_AGENT_MINOR_VERSION)
 
       case L_TK_WINDOWS:
         lua_newtable(L);
@@ -699,17 +741,19 @@ luaH_init(void)
     /* add luakit install path */
     g_ptr_array_add(paths, g_build_filename(LUAKIT_INSTALL_PATH, "lib", NULL));
 
-    for (gpointer *path = paths->pdata; *path; path++) {
+    const gchar *path;
+    for (guint i = 0; i < paths->len; i++) {
+        path = paths->pdata[i];
+        /* Search for file */
         lua_pushliteral(L, ";");
-        lua_pushstring(L, *path);
+        lua_pushstring(L, path);
         lua_pushliteral(L, "/?.lua");
         lua_concat(L, 3);
-
+        /* Search for lib */
         lua_pushliteral(L, ";");
-        lua_pushstring(L, *path);
+        lua_pushstring(L, path);
         lua_pushliteral(L, "/?/init.lua");
         lua_concat(L, 3);
-
         /* concat with package.path */
         lua_concat(L, 3);
     }
@@ -770,10 +814,12 @@ luaH_parserc(const gchar *confpath, gboolean run)
     for(; *config_dirs; config_dirs++)
         g_ptr_array_add(paths, g_build_filename(*config_dirs, "luakit", "rc.lua", NULL));
 
-    for (gpointer *path = paths->pdata; *path; path++) {
-        if (file_exists(*path)) {
-            if(luaH_loadrc(*path, run)) {
-                globalconf.confpath = g_strdup(*path);
+    const gchar *path;
+    for (guint i = 0; i < paths->len; i++) {
+        path = paths->pdata[i];
+        if (file_exists(path)) {
+            if(luaH_loadrc(path, run)) {
+                globalconf.confpath = g_strdup(path);
                 ret = TRUE;
                 goto bailout;
             } else if(!run)

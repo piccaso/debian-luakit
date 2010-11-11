@@ -1,3 +1,11 @@
+luakit (2010.09.24+veterans-1) unstable; urgency=low
+
+  * New upstream development snapshot.
+  * Remove misleading http_proxy line from globals.lua.
+    closes: #603037.
+
+ -- Clint Adams <clint@gnu.org>  Thu, 11 Nov 2010 18:26:21 -0500
+
 luakit (2010.09.24+halloween-2) unstable; urgency=low
 
   * Add dependency on liblua5.1-filesystem0.  closes: #602046.

@@ -25,7 +25,7 @@
 static gint
 luaH_eventbox_index(lua_State *L, luakit_token_t token)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
 
     switch(token)
     {
@@ -46,7 +46,7 @@ static gint
 luaH_eventbox_newindex(lua_State *L, luakit_token_t token)
 {
     size_t len;
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     const gchar *tmp;
     GdkColor c;
 
@@ -78,11 +78,12 @@ widget_eventbox(widget_t *w)
     g_object_set_data(G_OBJECT(w->widget), "lua_widget", (gpointer) w);
     gtk_widget_show(w->widget);
 
-    g_object_connect((GObject*)w->widget,
-      "signal::add",                  (GCallback)add_cb,            w,
-      "signal::button-release-event", (GCallback)button_release_cb, w,
-      "signal::parent-set",           (GCallback)parent_set_cb,     w,
-      "signal::remove",               (GCallback)remove_cb,         w,
+    g_object_connect(G_OBJECT(w->widget),
+      "signal::add",                  G_CALLBACK(add_cb),        w,
+      "signal::button-press-event",   G_CALLBACK(button_cb),     w,
+      "signal::button-release-event", G_CALLBACK(button_cb),     w,
+      "signal::parent-set",           G_CALLBACK(parent_set_cb), w,
+      "signal::remove",               G_CALLBACK(remove_cb),     w,
       NULL);
 
     return w;

@@ -19,6 +19,7 @@
  *
  */
 
+#include <gdk/gdkx.h>
 #include "luah.h"
 #include "widgets/common.h"
 
@@ -37,18 +38,49 @@ destroy_cb(GtkObject *win, widget_t *w)
 }
 
 static gint
+luaH_window_set_default_size(lua_State *L)
+{
+    widget_t *w = luaH_checkwidget(L, 1);
+    gint width = (gint) luaL_checknumber(L, 2);
+    gint height = (gint) luaL_checknumber(L, 3);
+    gtk_window_set_default_size(GTK_WINDOW(w->widget), width, height);
+    return 0;
+}
+
+static gint
+luaH_window_show(lua_State *L)
+{
+    widget_t *w = luaH_checkwidget(L, 1);
+    gtk_widget_show(w->widget);
+    gdk_window_set_events(gtk_widget_get_window(w->widget), GDK_ALL_EVENTS_MASK);
+    return 0;
+}
+
+static gint
 luaH_window_index(lua_State *L, luakit_token_t token)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
 
     switch(token)
     {
-      LUAKIT_WIDGET_INDEX_COMMON
       LUAKIT_WIDGET_BIN_INDEX_COMMON
       LUAKIT_WIDGET_CONTAINER_INDEX_COMMON
 
+      /* push widget class methods */
+      PF_CASE(DESTROY, luaH_widget_destroy)
+      PF_CASE(FOCUS,   luaH_widget_focus)
+      PF_CASE(HIDE,    luaH_widget_hide)
+
+      /* push window class methods */
+      PF_CASE(SET_DEFAULT_SIZE, luaH_window_set_default_size)
+      PF_CASE(SHOW,             luaH_window_show)
+
       /* push string methods */
-      PS_CASE(TITLE,    gtk_window_get_title(GTK_WINDOW(w->widget)))
+      PS_CASE(TITLE, gtk_window_get_title(GTK_WINDOW(w->widget)))
+
+      case L_TK_XID:
+        lua_pushnumber(L, GDK_WINDOW_XID(GTK_WIDGET(w->widget)->window));
+        return 1;
 
       default:
         break;
@@ -60,7 +92,7 @@ static gint
 luaH_window_newindex(lua_State *L, luakit_token_t token)
 {
     size_t len;
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
 
     switch(token)
     {
@@ -99,15 +131,12 @@ widget_window(widget_t *w)
     hints.min_height = 1;
     gtk_window_set_geometry_hints(GTK_WINDOW(w->widget), NULL, &hints, GDK_HINT_MIN_SIZE);
 
-    g_object_connect((GObject*)w->widget,
-      "signal::add",             (GCallback)add_cb,       w,
-      "signal::destroy",         (GCallback)destroy_cb,   w,
-      "signal::key-press-event", (GCallback)key_press_cb, w,
-      "signal::remove",          (GCallback)remove_cb,    w,
+    g_object_connect(G_OBJECT(w->widget),
+      "signal::add",             G_CALLBACK(add_cb),       w,
+      "signal::destroy",         G_CALLBACK(destroy_cb),   w,
+      "signal::key-press-event", G_CALLBACK(key_press_cb), w,
+      "signal::remove",          G_CALLBACK(remove_cb),    w,
       NULL);
-
-    gtk_widget_show(w->widget);
-    gdk_window_set_events(GTK_WIDGET(w->widget)->window, GDK_ALL_EVENTS_MASK);
 
     /* add to global windows list */
     g_ptr_array_add(globalconf.windows, w);

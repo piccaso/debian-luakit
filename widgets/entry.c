@@ -26,67 +26,56 @@ static gint
 luaH_entry_append(lua_State *L)
 {
     size_t len;
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     const gchar *text = luaL_checklstring(L, 2, &len);
     gint pos = -1;
-
     gtk_editable_insert_text(GTK_EDITABLE(w->widget),
         text, g_utf8_strlen(text, len), &pos);
-
-    return pos + 1;
+    lua_pushnumber(L, pos);
+    return 1;
 }
 
 static gint
 luaH_entry_insert(lua_State *L)
 {
     size_t len;
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     gint pos = luaL_checknumber(L, 2);
-    /* lua table indexes start at 1 */
-    if (pos > 0) pos--;
     const gchar *text = luaL_checklstring(L, 3, &len);
-
     gtk_editable_insert_text(GTK_EDITABLE(w->widget),
         text, g_utf8_strlen(text, len), &pos);
-
-    return pos + 1;
-}
-
-static gint
-luaH_entry_set_position(lua_State *L)
-{
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
-    gint pos = luaL_checknumber(L, 2);
-    /* lua table indexes start at 1 */
-    if (pos > 0) pos--;
-
-    gtk_editable_set_position(GTK_EDITABLE(w->widget), pos);
-    lua_pushnumber(L, gtk_editable_get_position(GTK_EDITABLE(w->widget)));
+    lua_pushnumber(L, pos);
     return 1;
 }
 
 static gint
-luaH_entry_get_position(lua_State *L)
+luaH_entry_select_region(lua_State* L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
-    lua_pushnumber(L, gtk_editable_get_position(GTK_EDITABLE(w->widget)));
-    return 1;
+    widget_t *w = luaH_checkwidget(L, 1);
+    gint startpos = luaL_checknumber(L, 2);
+    gint endpos = -1;
+    if(lua_gettop(L) > 2)
+        endpos = luaL_checknumber(L, 3);
+
+    gtk_editable_select_region(GTK_EDITABLE(w->widget), startpos, endpos);
+    return 0;
 }
 
 static gint
 luaH_entry_index(lua_State *L, luakit_token_t token)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
 
     switch(token)
     {
       LUAKIT_WIDGET_INDEX_COMMON
 
       /* push class methods */
-      PF_CASE(APPEND,       luaH_entry_append)
-      PF_CASE(INSERT,       luaH_entry_insert)
-      PF_CASE(GET_POSITION, luaH_entry_get_position)
-      PF_CASE(SET_POSITION, luaH_entry_set_position)
+      PF_CASE(APPEND,           luaH_entry_append)
+      PF_CASE(INSERT,           luaH_entry_insert)
+      PF_CASE(SELECT_REGION,    luaH_entry_select_region)
+      /* push integer properties */
+      PI_CASE(POSITION,         gtk_editable_get_position(GTK_EDITABLE(w->widget)))
       /* push string properties */
       PS_CASE(TEXT,         gtk_entry_get_text(GTK_ENTRY(w->widget)))
       PS_CASE(FG,           g_object_get_data(G_OBJECT(w->widget), "fg"))
@@ -105,7 +94,7 @@ static gint
 luaH_entry_newindex(lua_State *L, luakit_token_t token)
 {
     size_t len;
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     const gchar *tmp;
     GdkColor c;
     PangoFontDescription *font;
@@ -135,6 +124,10 @@ luaH_entry_newindex(lua_State *L, luakit_token_t token)
         gtk_entry_set_has_frame(GTK_ENTRY(w->widget), luaH_checkboolean(L, 3));
         break;
 
+      case L_TK_POSITION:
+        gtk_editable_set_position(GTK_EDITABLE(w->widget), luaL_checknumber(L, 3));
+        break;
+
       case L_TK_FONT:
         tmp = luaL_checklstring(L, 3, &len);
         font = pango_font_description_from_string(tmp);
@@ -160,9 +153,8 @@ activate_cb(GtkEntry *e, widget_t *w)
 }
 
 static void
-changed_cb(GtkEditable *e, widget_t *w)
+changed_cb(widget_t *w)
 {
-    (void) e;
     lua_State *L = globalconf.L;
     luaH_object_push(L, w->ref);
     luaH_object_emit_signal(L, -1, "changed", 0, 0);
@@ -183,13 +175,25 @@ widget_entry(widget_t *w)
     /* setup default settings */
     gtk_entry_set_inner_border(GTK_ENTRY(w->widget), NULL);
 
-    g_object_connect((GObject*)w->widget,
-      "signal::activate",          (GCallback)activate_cb,    w,
-      "signal::changed",           (GCallback)changed_cb,     w,
-      "signal::focus-in-event",    (GCallback)focus_cb,       w,
-      "signal::focus-out-event",   (GCallback)focus_cb,       w,
-      "signal::key-press-event",   (GCallback)key_press_cb,   w,
-      "signal::parent-set",        (GCallback)parent_set_cb,  w,
+    g_object_connect(G_OBJECT(w->widget),
+      "signal::activate",                          G_CALLBACK(activate_cb),   w,
+      "signal::focus-in-event",                    G_CALLBACK(focus_cb),      w,
+      "signal::focus-out-event",                   G_CALLBACK(focus_cb),      w,
+      "signal::key-press-event",                   G_CALLBACK(key_press_cb),  w,
+      "signal::parent-set",                        G_CALLBACK(parent_set_cb), w,
+      // The following signals replace the old "signal::changed", since that
+      // does not allow for the selection to be changed in it's callback.
+      "swapped-signal-after::backspace",           G_CALLBACK(changed_cb),    w,
+      "swapped-signal-after::delete-from-cursor",  G_CALLBACK(changed_cb),    w,
+      "swapped-signal-after::insert-at-cursor",    G_CALLBACK(changed_cb),    w,
+      "swapped-signal-after::paste-clipboard",     G_CALLBACK(changed_cb),    w,
+      "swapped-signal::button-release-event",      G_CALLBACK(changed_cb),    w,
+      NULL);
+
+    // Further signal to replace "signal::changed"
+    GtkEntry* entry = GTK_ENTRY(w->widget);
+    g_object_connect(G_OBJECT(entry->im_context),
+      "swapped-signal::commit", G_CALLBACK(changed_cb), w,
       NULL);
 
     gtk_widget_show(w->widget);

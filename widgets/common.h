@@ -53,7 +53,7 @@
       lua_pushcfunction(L, luaH_widget_get_children); \
       return 1;
 
-gboolean button_release_cb(GtkWidget*, GdkEventButton*, widget_t*);
+gboolean button_cb(GtkWidget*, GdkEventButton*, widget_t*);
 gboolean focus_cb(GtkWidget*, GdkEventFocus*, widget_t*);
 gboolean key_press_cb(GtkWidget*, GdkEventKey*, widget_t*);
 gboolean key_release_cb(GtkWidget*, GdkEventKey*, widget_t*);
@@ -72,7 +72,6 @@ void add_cb(GtkContainer*, GtkWidget*, widget_t*);
 void parent_set_cb(GtkWidget*, GtkObject*, widget_t*);
 void remove_cb(GtkContainer*, GtkWidget*, widget_t*);
 void widget_destructor(widget_t*);
-
 
 #endif
 // vim: ft=c:et:sw=4:ts=8:sts=4:tw=80

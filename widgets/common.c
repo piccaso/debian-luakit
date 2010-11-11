@@ -41,7 +41,7 @@ key_press_cb(GtkWidget *win, GdkEventKey *ev, widget_t *w)
 }
 
 gboolean
-button_release_cb(GtkWidget *win, GdkEventButton *ev, widget_t *w)
+button_cb(GtkWidget *win, GdkEventButton *ev, widget_t *w)
 {
     (void) win;
     gint ret;
@@ -49,7 +49,19 @@ button_release_cb(GtkWidget *win, GdkEventButton *ev, widget_t *w)
     luaH_object_push(L, w->ref);
     luaH_modifier_table_push(L, ev->state);
     lua_pushinteger(L, ev->button);
-    ret = luaH_object_emit_signal(L, -3, "button-release", 2, 1);
+
+    switch (ev->type) {
+      case GDK_2BUTTON_PRESS:
+        ret = luaH_object_emit_signal(L, -3, "button-double-click", 2, 1);
+        break;
+      case GDK_BUTTON_RELEASE:
+        ret = luaH_object_emit_signal(L, -3, "button-release", 2, 1);
+        break;
+      default:
+        ret = luaH_object_emit_signal(L, -3, "button-press", 2, 1);
+        break;
+    }
+
     /* User responded with TRUE, so do not propagate event any further */
     if (ret && luaH_checkboolean(L, -1)) {
         lua_pop(L, ret + 1);
@@ -127,8 +139,8 @@ true_cb()
 gint
 luaH_widget_set_child(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
-    widget_t *child = luaH_checkudataornil(L, 2, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
+    widget_t *child = luaH_checkwidgetornil(L, 2);
 
     /* remove old child */
     GtkWidget *widget = gtk_bin_get_child(GTK_BIN(w->widget));
@@ -147,7 +159,7 @@ luaH_widget_set_child(lua_State *L)
 gint
 luaH_widget_get_child(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     GtkWidget *widget = gtk_bin_get_child(GTK_BIN(w->widget));
     widget_t *child = NULL;
 
@@ -162,8 +174,8 @@ luaH_widget_get_child(lua_State *L)
 gint
 luaH_widget_remove(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
-    widget_t *child = luaH_checkudata(L, 2, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
+    widget_t *child = luaH_checkwidget(L, 2);
     g_object_ref(G_OBJECT(child->widget));
     gtk_container_remove(GTK_CONTAINER(w->widget), GTK_WIDGET(child->widget));
     return 0;
@@ -172,7 +184,7 @@ luaH_widget_remove(lua_State *L)
 gint
 luaH_widget_get_children(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     widget_t *child;
     GList *children = gtk_container_get_children(GTK_CONTAINER(w->widget));
     GList *iter = children;
@@ -191,7 +203,7 @@ luaH_widget_get_children(lua_State *L)
 gint
 luaH_widget_show(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     gtk_widget_show(w->widget);
     return 0;
 }
@@ -199,7 +211,7 @@ luaH_widget_show(lua_State *L)
 gint
 luaH_widget_hide(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     gtk_widget_hide(w->widget);
     return 0;
 }
@@ -207,7 +219,7 @@ luaH_widget_hide(lua_State *L)
 gint
 luaH_widget_focus(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     gtk_widget_grab_focus(w->widget);
     return 0;
 }
@@ -215,7 +227,7 @@ luaH_widget_focus(lua_State *L)
 gint
 luaH_widget_destroy(lua_State *L)
 {
-    widget_t *w = luaH_checkudata(L, 1, &widget_class);
+    widget_t *w = luaH_checkwidget(L, 1);
     if (w->destructor)
         w->destructor(w);
     w->destructor = NULL;
@@ -228,7 +240,8 @@ void
 widget_destructor(widget_t *w)
 {
     debug("destroying widget %p of type '%s'", w, w->info->name);
-    gtk_widget_destroy(GTK_WIDGET(w->widget));
+    if (w->widget)
+        gtk_widget_destroy(GTK_WIDGET(w->widget));
     w->widget = NULL;
 }
 

@@ -177,12 +177,12 @@ window.init_funcs = {
     end,
 
     apply_window_theme = function (w)
-        local s, i  = w.sbar, w.ibar
+        local s, i = w.sbar, w.ibar
 
         -- Set foregrounds
         for wi, v in pairs({
             [s.l.uri]    = theme.uri_sbar_fg,
-            [s.l.loaded] = theme.loaded_sbar_fg,
+            [s.l.loaded] = theme.sbar_loaded_fg,
             [s.r.buf]    = theme.buf_sbar_fg,
             [s.r.tabi]   = theme.tabi_sbar_fg,
             [s.r.scroll] = theme.scroll_sbar_fg,
@@ -203,7 +203,7 @@ window.init_funcs = {
         -- Set fonts
         for wi, v in pairs({
             [s.l.uri]    = theme.uri_sbar_font,
-            [s.l.loaded] = theme.loaded_sbar_font,
+            [s.l.loaded] = theme.sbar_loaded_font,
             [s.r.buf]    = theme.buf_sbar_font,
             [s.r.ssl]    = theme.ssl_sbar_font,
             [s.r.tabi]   = theme.tabi_sbar_font,
@@ -490,19 +490,6 @@ window.methods = {
         w:update_buf()
     end,
 
-    download = function (w, link, filename)
-        if not filename then
-            -- just take the last part of the link
-            filename = string.gsub(string.match(link, "/[^/]*/?$"), "/", "")
-        end
-        -- Make download dir
-        os.execute(string.format("mkdir -p %q", globals.download_dir))
-        local dl = globals.download_dir .. "/" .. filename
-        local wget = string.format("wget -q %q -O %q", link, dl)
-        info("Launching: %s", wget)
-        luakit.spawn(wget)
-    end,
-
     update_tablist = function (w, current)
         local current = current or w.tabs:current()
         local fg, bg = theme.tab_fg, theme.tab_bg
@@ -535,7 +522,7 @@ window.methods = {
         w.tablist:update(tabs, current)
     end,
 
-    new_tab = function (w, arg, switch)
+    new_tab = function (w, arg, switch, order)
         local view
         -- Use blank tab first
         if w.has_blank and w.tabs:count() == 1 and w.tabs:atindex(1).uri == "about:blank" then
@@ -545,8 +532,21 @@ window.methods = {
         -- Make new webview widget
         if not view then
             view = webview.new(w)
-            local i = w.tabs:append(view)
-            if switch ~= false then w.tabs:switch(i) end
+
+            if not order and taborder then
+                order = (switch == false and taborder.default_bg) or
+                                             taborder.default
+            end
+
+            if not order then
+                -- No taborder, or no taborder defaults. Put new tab last.
+                order = function(w) return w.tabs:count() + 1 end
+            end
+
+            local newindex = order(w, view)
+            newindex = w.tabs:insert(view, newindex)
+
+            if switch ~= false then w.tabs:switch(newindex) end
         end
         -- Load uri or webview history table
         if type(arg) == "string" then view.uri = arg
@@ -581,6 +581,8 @@ window.methods = {
     end,
 
     close_win = function (w)
+        w:emit_signal("close")
+
         -- Close all tabs
         while w.tabs:count() ~= 0 do
             w:close_tab(nil, false)

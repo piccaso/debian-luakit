@@ -62,6 +62,10 @@ require "userscripts"
 -- Add bookmarks support
 require "bookmarks"
 
+-- Add download support
+require "downloads"
+require "downloads_chrome"
+
 -- Add command completion
 require "completion"
 
@@ -70,6 +74,9 @@ require "cmdhist"
 
 -- Add search mode & binds
 require "search"
+
+-- Add ordering of new tabs
+require "taborder"
 
 require "follow_selected"
 require "go_input"

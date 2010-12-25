@@ -1,3 +1,9 @@
+luakit (2010.12.25-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Clint Adams <clint@gnu.org>  Sat, 25 Dec 2010 09:14:36 -0500
+
 luakit (2010.09.24+whatthelol-1) unstable; urgency=low
 
   * New upstream development snapshot.

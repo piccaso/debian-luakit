@@ -232,7 +232,7 @@ window.methods = {
 
     get_tab_title = function (w, view)
         if not view then view = w:get_current() end
-        return view:get_prop("title") or view.uri or "(Untitled)"
+        return view:get_property("title") or view.uri or "(Untitled)"
     end,
 
     -- Wrapper around the bind plugin's hit method
@@ -252,7 +252,7 @@ window.methods = {
 
     -- Wrapper around the bind plugin's match_cmd method
     match_cmd = function (w, buffer)
-        return lousy.bind.match_cmd(w, get_mode("command").commands, buffer, w)
+        return lousy.bind.match_cmd(w, get_mode("command").commands, buffer)
     end,
 
     -- enter command or characters into command line
@@ -270,6 +270,11 @@ window.methods = {
         local left, right = string.sub(text, 1, pos), string.sub(text, pos+1)
         i.text = left .. str .. right
         i.position = pos + #str
+    end,
+
+    -- Emulates pressing the Return key in input field
+    activate = function (w)
+        w.ibar.input:emit_signal("activate")
     end,
 
     del_word = function (w)
@@ -409,7 +414,7 @@ window.methods = {
 
     update_win_title = function (w, view)
         if not view then view = w:get_current() end
-        local uri, title = view.uri, view:get_prop("title")
+        local uri, title = view.uri, view:get_property("title")
         title = (title or "luakit") .. ((uri and " - " .. uri) or "")
         local max = globals.max_title_len or 80
         if #title > max then title = string.sub(title, 1, max) .. "..." end
@@ -428,7 +433,7 @@ window.methods = {
 
     update_progress = function (w, view, p)
         if not view then view = w:get_current() end
-        if not p then p = view:get_prop("progress") end
+        if not p then p = view:get_property("progress") end
         local loaded = w.sbar.l.loaded
         if not view:loading() or p == 1 then
             loaded:hide()
@@ -578,11 +583,6 @@ window.methods = {
         local index = w.tabs:indexof(view)
         if index ~= 1 then tab.after = w.tabs:atindex(index-1) end
         table.insert(w.closed_tabs, tab)
-        -- Remove & destroy
-        w.tabs:remove(view)
-        view.uri = "about:blank"
-        -- Try to prevent flash segfaulting luakit on webview widget destroy.
-        view:set_prop("enable-plugins", false)
         view:destroy()
         w:update_tab_count()
         w:update_tablist()
@@ -663,8 +663,10 @@ window.methods = {
         if not arg then return "about:blank" end
         args = lousy.util.string.split(lousy.util.string.strip(arg))
         -- Detect localhost, scheme:// or domain-like beginning in string
-        if #args == 1  then
+        if #args == 1 then
             local uri = args[1]
+            if uri == "about:blank" then return uri end
+            local ip = string.match(uri, "^(%d+.%d+.%d+.%d+)$")
             local scheme = string.match(uri, "^%w+://")
             local localhost = string.match(uri, "^localhost[:/]%S*") or string.match(uri, "^localhost$")
             -- Extract domain from before the first colon or slash
@@ -672,7 +674,7 @@ window.methods = {
             -- A valid domain consists of [%w%-_%.] and has at least one dot
             -- with at least one [%w%-_] on the left and a TLD on the right
             -- with at least two letters
-            if scheme or localhost or (domain and string.match(domain, "^[%w%-_%.]*[%w%-_]%.%a%a[%a%.]*$")) then
+            if ip or scheme or localhost or (domain and string.match(domain, "^[%w%-_%.]*[%w%-_]%.%a%a[%a%.]*$")) then
                 return uri
             end
         end
@@ -761,12 +763,12 @@ function window.new(uris)
 
     -- Populate notebook with tabs
     for _, uri in ipairs(uris or {}) do
-        w:new_tab(uri, false)
+        w:new_tab(w:search_open(uri), false)
     end
 
     -- Make sure something is loaded
     if w.tabs:count() == 0 then
-        w:new_tab(globals.homepage, false)
+        w:new_tab(w:search_open(globals.homepage), false)
     end
 
     -- Set initial mode

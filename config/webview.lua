@@ -7,17 +7,15 @@ webview = {}
 
 -- Table of functions which are called on new webview widgets.
 webview.init_funcs = {
-    -- Set global properties
-    set_global_props = function (view, w)
-        view:set_prop('user-agent', globals.useragent)
-        -- Set ssl options
-        if globals.ssl_strict ~= nil then
-            view:set_prop('ssl-strict', globals.ssl_strict)
-        end
-        if globals.ca_file and os.exists(globals.ca_file) then
-            view:set_prop('ssl-ca-file', globals.ca_file)
-            -- Warning: update the following variable if 'ssl-ca-file' is
-            -- changed anywhere else.
+    -- Set useragent
+    set_useragent = function (view, w)
+        view:set_property('user-agent', globals.useragent)
+    end,
+
+    -- Check if checking ssl certificates
+    checking_ssl = function (view, w)
+        local ca_file = soup.get_property("ssl-ca-file")
+        if ca_file and os.exists(ca_file) then
             w.checking_ssl = true
         end
     end,
@@ -86,17 +84,28 @@ webview.init_funcs = {
         end)
     end,
 
-    -- Clicking a form field automatically enters insert mode
+    -- Clicking a form field automatically enters insert mode.
     form_insert_mode = function (view, w)
+        view:add_signal("button-press", function (v, mods, button, context)
+            -- Clear start search marker
+            (w.search_state or {}).marker = nil
+
+            if button == 1 then
+                if context.editable then
+                    view:emit_signal("form-active")
+                else
+                    view:emit_signal("root-active")
+                end
+            end
+        end)
+
         view:add_signal("form-active", function ()
             if w:get_mode() ~= "passthrough" then
-                (w.search_state or {}).marker = nil
                 w:set_mode("insert")
             end
         end)
         view:add_signal("root-active", function ()
             if w:get_mode() ~= "passthrough" then
-                (w.search_state or {}).marker = nil
                 w:set_mode()
             end
         end)
@@ -113,10 +122,11 @@ webview.init_funcs = {
     -- Try to match a button event to a users button binding else let the
     -- press hit the webview.
     button_bind_match = function (view, w)
-        -- Match button press
-        view:add_signal("button-release", function (v, mods, button)
+        view:add_signal("button-release", function (v, mods, button, context)
             (w.search_state or {}).marker = nil
-            if w:hit(mods, button) then return true end
+            if w:hit(mods, button, { context = context }) then
+                return true
+            end
         end)
     end,
 
@@ -138,7 +148,7 @@ webview.init_funcs = {
             local props = lousy.util.table.join(domain_props.all or {}, domain_props[domain] or {})
             for k, v in pairs(props) do
                 info("Domain prop: %s = %s (%s)", k, tostring(v), domain)
-                view:set_prop(k, v)
+                view:set_property(k, v)
             end
         end)
     end,
@@ -175,15 +185,6 @@ webview.init_funcs = {
         -- Return a newly created webview in a new tab
         view:add_signal("create-web-view", function (v)
             return w:new_tab()
-        end)
-    end,
-
-    -- Action to take on download request.
-    download_request = function (view, w)
-        -- 'link' contains the download link
-        -- 'filename' contains the suggested filename (from server or webkit)
-        view:add_signal("download-request", function (v, link, filename)
-            downloads.add(link)
         end)
     end,
 
@@ -231,25 +232,33 @@ webview.methods = {
 
     -- Property functions
     get = function (view, w, k)
-        return view:get_prop(k)
+        return view:get_property(k)
     end,
 
     set = function (view, w, k, v)
-        view:set_prop(k, v)
+        view:set_property(k, v)
     end,
 
-    -- evaluate javascript code and return string result
-    eval_js = function (view, w, script, file, on_focused)
-        return view:eval_js(script, file or "(inline)", not not on_focused)
+    -- Evaluate javascript code and return string result
+    -- The frame argument can be any of the following:
+    -- * true to evaluate on the focused frame
+    -- * false or nothing to evaluate on the main frame
+    -- * a frame object to evaluate on the given frame
+    eval_js = function (view, w, script, file, frame)
+        return view:eval_js(script, file or "(inline)", frame)
     end,
 
-    -- evaluate javascript code from file and return string result
-    eval_js_from_file = function (view, w, file, on_focused)
+    -- Evaluate javascript code from file and return string result
+    -- The frame argument can be any of the following:
+    -- * true to evaluate on the focused frame
+    -- * false or nothing to evaluate on the main frame
+    -- * a frame object to evaluate on the given frame
+    eval_js_from_file = function (view, w, file, frame)
         local fh, err = io.open(file)
         if not fh then return error(err) end
         local script = fh:read("*a")
         fh:close()
-        return view:eval_js(script, file, not not on_focused)
+        return view:eval_js(script, file, frame)
     end,
 
     -- Toggle source view
@@ -260,20 +269,20 @@ webview.methods = {
 
     -- Zoom functions
     zoom_in = function (view, w, step, full_zoom)
-        view:set_prop("full-content-zoom", not not full_zoom)
+        view:set_property("full-content-zoom", not not full_zoom)
         step = step or globals.zoom_step or 0.1
-        view:set_prop("zoom-level", view:get_prop("zoom-level") + step)
+        view:set_property("zoom-level", view:get_property("zoom-level") + step)
     end,
 
     zoom_out = function (view, w, step, full_zoom)
-        view:set_prop("full-content-zoom", not not full_zoom)
+        view:set_property("full-content-zoom", not not full_zoom)
         step = step or globals.zoom_step or 0.1
-        view:set_prop("zoom-level", math.max(0.01, view:get_prop("zoom-level") - step))
+        view:set_property("zoom-level", math.max(0.01, view:get_property("zoom-level") - step))
     end,
 
     zoom_set = function (view, w, level, full_zoom)
-        view:set_prop("full-content-zoom", not not full_zoom)
-        view:set_prop("zoom-level", level or 1.0)
+        view:set_property("full-content-zoom", not not full_zoom)
+        view:set_property("zoom-level", level or 1.0)
     end,
 
     -- Webview scroll functions
@@ -312,12 +321,12 @@ webview.methods = {
 function webview.new(w)
     local view = widget{type = "webview"}
 
+    view.show_scrollbars = false
+
     -- Call webview init functions
     for k, func in pairs(webview.init_funcs) do
         func(view, w)
     end
-
-    view.show_scrollbars = false
     return view
 end
 

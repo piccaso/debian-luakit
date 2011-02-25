@@ -1,3 +1,10 @@
+luakit (2010.12.25+0225-1) unstable; urgency=low
+
+  * New upstream development snapshot.
+  * Add build dependency on libsqlite3-dev.
+
+ -- Clint Adams <clint@debian.org>  Fri, 25 Feb 2011 10:33:39 -0500
+
 luakit (2010.12.25-2) unstable; urgency=low
 
   * New upstream bugfix release (2010.12.25-r1).

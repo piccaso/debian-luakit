@@ -23,12 +23,16 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <webkit/webkit.h>
+#include <time.h>
+
 #include "common/util.h"
 #include "common/lualib.h"
 #include "luakit.h"
-#include "classes/widget.h"
-#include "classes/timer.h"
 #include "classes/download.h"
+#include "classes/soup/soup.h"
+#include "classes/sqlite3.h"
+#include "classes/timer.h"
+#include "classes/widget.h"
 #include "luah.h"
 
 void
@@ -320,7 +324,7 @@ luaH_isloop(lua_State *L, gint idx)
 static gint
 luaH_luakit_get_selection(lua_State *L)
 {
-    int n = lua_gettop(L);
+    gint n = lua_gettop(L);
     GdkAtom atom = GDK_SELECTION_PRIMARY;
 
     if (n) {
@@ -354,7 +358,7 @@ luaH_luakit_get_selection(lua_State *L)
 static gint
 luaH_luakit_set_selection(lua_State *L)
 {
-    int n = lua_gettop(L);
+    gint n = lua_gettop(L);
     GdkAtom atom = GDK_SELECTION_PRIMARY;
 
     if (0 == n)
@@ -422,10 +426,10 @@ luaH_luakit_uri_decode(lua_State *L)
  * \lparam default_name The filename to preselect in the dialog.
  * \lreturn The name of the selected file or nil if the dialog was cancelled.
  */
-static int
+static gint
 luaH_luakit_save_file(lua_State *L)
 {
-    const char *title = luaL_checkstring(L, 1);
+    const gchar *title = luaL_checkstring(L, 1);
     // decipher the parent
     GtkWindow *parent_window;
     if (lua_isnil(L, 2)) {
@@ -439,8 +443,8 @@ luaH_luakit_save_file(lua_State *L)
             parent_window = NULL;
         }
     }
-    const char *default_folder = luaL_checkstring(L, 3);
-    const char *default_name = luaL_checkstring(L, 4);
+    const gchar *default_folder = luaL_checkstring(L, 3);
+    const gchar *default_name = luaL_checkstring(L, 4);
     GtkWidget *dialog = gtk_file_chooser_dialog_new(title,
             parent_window,
             GTK_FILE_CHOOSER_ACTION_SAVE,
@@ -547,6 +551,15 @@ luaH_luakit_spawn(lua_State *L)
 }
 
 static gint
+luaH_luakit_time(lua_State *L)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    lua_pushnumber(L, ts.tv_sec + (ts.tv_nsec / 1e9));
+    return 1;
+}
+
+static gint
 luaH_exec(lua_State *L)
 {
     const gchar *cmd = luaL_checkstring(L, 1);
@@ -575,6 +588,7 @@ luaH_luakit_index(lua_State *L)
     switch(token) {
 
       /* push class methods */
+      PF_CASE(TIME,             luaH_luakit_time)
       PF_CASE(GET_SPECIAL_DIR,  luaH_luakit_get_special_dir)
       PF_CASE(SAVE_FILE,        luaH_luakit_save_file)
       PF_CASE(SPAWN,            luaH_luakit_spawn)
@@ -669,7 +683,7 @@ luaH_luakit_remove_signal(lua_State *L)
     luaH_checkfunction(L, 2);
     gpointer func = (gpointer) lua_topointer(L, 2);
     signal_remove(globalconf.signals, name, func);
-    luaH_object_unref(L, (void *) func);
+    luaH_object_unref(L, (gpointer) func);
     return 0;
 }
 
@@ -683,8 +697,8 @@ luaH_luakit_remove_signal(lua_State *L)
 static gint
 luaH_luakit_emit_signal(lua_State *L)
 {
-    signal_object_emit(L, globalconf.signals, luaL_checkstring(L, 1), lua_gettop(L) - 1);
-    return 0;
+    return signal_object_emit(L, globalconf.signals, luaL_checkstring(L, 1),
+        lua_gettop(L) - 1, LUA_MULTRET);
 }
 
 static gint
@@ -708,7 +722,7 @@ luaH_dofunction_on_error(lua_State *L)
     /* duplicate string error */
     lua_pushvalue(L, -1);
     /* emit error signal */
-    signal_object_emit(L, globalconf.signals, "debug::error", 1);
+    signal_object_emit(L, globalconf.signals, "debug::error", 1, 0);
 
     if(!luaL_dostring(L, "return debug.traceback(\"error while running function\", 3)"))
     {
@@ -756,11 +770,17 @@ luaH_init(void)
     /* Export luakit lib */
     luaH_openlib(L, "luakit", luakit_lib, luakit_lib);
 
+    /* Export soup lib */
+    soup_lib_setup(L);
+
     /* Export widget */
     widget_class_setup(L);
 
     /* Export download */
     download_class_setup(L);
+
+    /* Export sqlite3 */
+    sqlite3_class_setup(L);
 
     /* Export timer */
     timer_class_setup(L);
@@ -819,6 +839,9 @@ luaH_init(void)
 
     /* package.path = "concatenated string" */
     lua_setfield(L, 1, "path");
+
+    /* remove package module from stack */
+    lua_pop(L, 1);
 }
 
 gboolean
@@ -894,7 +917,7 @@ gint
 luaH_class_index_miss_property(lua_State *L, lua_object_t *obj)
 {
     (void) obj;
-    signal_object_emit(L, globalconf.signals, "debug::index::miss", 2);
+    signal_object_emit(L, globalconf.signals, "debug::index::miss", 2, 0);
     return 0;
 }
 
@@ -902,7 +925,7 @@ gint
 luaH_class_newindex_miss_property(lua_State *L, lua_object_t *obj)
 {
     (void) obj;
-    signal_object_emit(L, globalconf.signals, "debug::newindex::miss", 3);
+    signal_object_emit(L, globalconf.signals, "debug::newindex::miss", 3, 0);
     return 0;
 }
 

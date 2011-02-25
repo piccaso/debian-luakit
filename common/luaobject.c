@@ -38,6 +38,7 @@ luaH_object_setup(lua_State *L) {
 }
 
 /* Increment a object reference in its store table.
+ * Removes the referenced object from the stack.
  * `tud` is the table index on the stack.
  * `oud` is the object index on the stack.
  * Returns a pointer to the object. */
@@ -166,11 +167,25 @@ luaH_object_remove_signal(lua_State *L, gint oud,
     lua_remove(L, ud);
 }
 
-void
+/* Emit a signal from a signals array and return the results of the first
+ * handler that returns something.
+ * `signals` is the signals array.
+ * `name` is the name of the signal.
+ * `nargs` is the number of arguments to pass to the called functions.
+ * `nret` is the number of return values this function pushes onto the stack.
+ * A positive number means that any missing values will be padded with nil
+ * and any superfluous values will be removed.
+ * LUA_MULTRET means that any number of values is returned without any
+ * adjustment.
+ * 0 means that all return values are removed and that ALL handler functions are
+ * executed.
+ * Returns the number of return values pushed onto the stack. */
+gint
 signal_object_emit(lua_State *L, signal_t *signals,
-        const gchar *name, gint nargs) {
+        const gchar *name, gint nargs, gint nret) {
 
     signal_array_t *sigfuncs = signal_lookup(signals, name);
+    debug("emitting \"%s\" with %d args and %d nret", name, nargs, nret);
     if(sigfuncs) {
         gint nbfunc = sigfuncs->len;
         luaL_checkstack(L, lua_gettop(L) + nbfunc + nargs + 1,
@@ -182,6 +197,7 @@ signal_object_emit(lua_State *L, signal_t *signals,
         }
 
         for(gint i = 0; i < nbfunc; i++) {
+            gint stacksize = lua_gettop(L);
             /* push all args */
             for(gint j = 0; j < nargs; j++)
                 lua_pushvalue(L, - nargs - nbfunc + i);
@@ -189,17 +205,53 @@ signal_object_emit(lua_State *L, signal_t *signals,
             lua_pushvalue(L, - nargs - nbfunc + i);
             /* remove this first function */
             lua_remove(L, - nargs - nbfunc - 1 + i);
-            luaH_dofunction(L, nargs, 0);
+            luaH_dofunction(L, nargs, LUA_MULTRET);
+            gint ret = lua_gettop(L) - stacksize + 1;
+
+            /* Note that only if nret && ret will the signal execution stop */
+            if (nret && ret) {
+                /* remove all args and functions */
+                for (gint j = 0; j < nargs + nbfunc - i - 1; j++) {
+                    lua_remove(L, - ret - 1);
+                }
+
+                /* Adjust the number of results to match nret */
+                if (nret != LUA_MULTRET && ret != nret) {
+                    /* Pad with nils */
+                    for (; ret < nret; ret++)
+                        lua_pushnil(L);
+                    /* Or truncate stack */
+                    if (ret > nret) {
+                        lua_pop(L, ret - nret);
+                        ret = nret;
+                    }
+                }
+
+                /* Return the number of returned arguments */
+                return ret;
+            } else if (nret == 0) {
+                /* ignore all return values */
+                lua_pop(L, ret);
+            }
         }
     }
     /* remove args */
     lua_pop(L, nargs);
+    return 0;
 }
 
 /* Emit a signal to an object.
  * `oud` is the object index on the stack.
  * `name` is the name of the signal.
- * `nargs` is the number of arguments to pass to the called functions. */
+ * `nargs` is the number of arguments to pass to the called functions.
+ * `nret` is the number of return values this function pushes onto the stack.
+ * A positive number means that any missing values will be padded with nil
+ * and any superfluous values will be removed.
+ * LUA_MULTRET means that any number of values is returned without any
+ * adjustment.
+ * 0 means that all return values are removed and that ALL handler functions are
+ * executed.
+ * Returns the number of return values pushed onto the stack. */
 gint
 luaH_object_emit_signal(lua_State *L, gint oud,
         const gchar *name, gint nargs, gint nret) {
@@ -233,7 +285,7 @@ luaH_object_emit_signal(lua_State *L, gint oud,
             ret = lua_gettop(L) - top;
 
             /* Note that only if nret && ret will the signal execution stop */
-            if (ret) {
+            if (nret && ret) {
                 /* Adjust the number of results to match nret (including 0) */
                 if (nret != LUA_MULTRET && ret != nret) {
                     /* Pad with nils */
@@ -250,6 +302,9 @@ luaH_object_emit_signal(lua_State *L, gint oud,
                     lua_remove(L, bot);
                 /* Return the number of returned arguments */
                 return ret;
+            } else if (nret == 0) {
+                /* ignore all return values */
+                lua_pop(L, ret);
             }
         }
     }

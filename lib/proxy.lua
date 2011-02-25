@@ -14,8 +14,10 @@ local lousy = require "lousy"
 local theme = theme
 local unpack = unpack
 local table = table
-local capi = { luakit = luakit }
+local capi = { luakit = luakit, soup = soup }
 local webview = webview
+local widget = widget
+local window = window
 -- Check for mode/bind functions
 local add_binds, add_cmds = add_binds, add_cmds
 local new_mode, menu_binds = new_mode, menu_binds
@@ -123,12 +125,44 @@ end
 webview.init_funcs.set_proxy = function (view, w)
     local active = get_active()
     if active and active.address ~= '' then
-        view:set_prop('proxy-uri', active.address)
+        capi.soup.set_property('proxy-uri', active.address)
     end
     -- The proxy property is set globablly so this function only needs to be
     -- called once. Other proxy changes take place from the interactive
     -- `:proxy` menu.
     webview.init_funcs.set_proxy = nil
+end
+
+-- Create a proxy indicator widget and add it to the status bar
+window.init_funcs.build_proxy_indicator = function (w)
+    local r = w.sbar.r
+    r.proxyi = widget{type="label"}
+    r.layout:pack_start(r.proxyi, false, false, 0)
+    r.layout:reorder(r.proxyi, 2)
+
+    r.proxyi.fg = theme.proxyi_sbar_fg
+    r.proxyi.font = theme.proxyi_sbar_font
+    w:update_proxy_indicator()
+end
+
+-- Helper function to update text in proxy indicator
+window.methods.update_proxy_indicator = function (w)
+    local name = get_active().name
+    local proxyi = w.sbar.r.proxyi
+    if name then
+        local text = string.format("[%s]", name)
+        if proxyi.text ~= text then proxyi.text = text end
+        proxyi:show()
+    else
+        proxyi:hide()
+    end
+end
+
+-- Update proxy indicator in status bar on change of address
+webview.init_funcs.proxy_indicator_update = function (view, w)
+    view:add_signal("property::proxy-uri", function (v)
+        w:update_proxy_indicator()
+    end)
 end
 
 new_mode("proxymenu", {
@@ -183,8 +217,7 @@ add_binds("proxymenu", lousy.util.table.join({
             if row and row.address then
                 set_active(row.name)
                 w:set_mode()
-                -- Change proxy for every tab
-                w:get_current():set_prop('proxy-uri', row.address)
+                capi.soup.set_property('proxy-uri', row.address)
                 if row.name then
                     w:notify(string.format("Using proxy: %s (%s)", row.name, row.address))
                 else

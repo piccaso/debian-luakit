@@ -61,6 +61,33 @@ menu_binds = {
 add_binds("all", {
     key({},          "Escape",  function (w) w:set_mode() end),
     key({"Control"}, "[",       function (w) w:set_mode() end),
+
+    -- Mouse bindings
+    but({},     8,  function (w) w:back()     end),
+    but({},     9,  function (w) w:forward()  end),
+
+    -- Open link in new tab or navigate to selection
+    but({},     2,  function (w, m)
+        -- Ignore button 2 clicks in form fields
+        if not m.context.editable then
+            -- Open hovered uri in new tab
+            local uri = w:get_current().hovered_uri
+            if uri then
+                w:new_tab(uri, false)
+            else -- Open selection in current tab
+                uri = luakit.get_selection()
+                if uri then w:navigate(w:search_open(uri)) end
+            end
+        end
+    end),
+
+    -- Open link in new tab when Ctrl-clicked.
+    but({"Control"}, 1, function (w, m)
+        local uri = w:get_current().hovered_uri
+        if uri then
+            w:new_tab(uri, false)
+        end
+    end),
 })
 
 add_binds("normal", {
@@ -115,6 +142,8 @@ add_binds("normal", {
     key({},          "Page_Up",     function (w) w:scroll_page(-1.0)   end),
     key({},          "Home",        function (w) w:scroll_vert("0%")   end),
     key({},          "End",         function (w) w:scroll_vert("100%") end),
+    key({},          "0",           function (w) w:scroll_horiz("0%")   end),
+    key({},          "$",           function (w) w:scroll_horiz("100%") end),
 
     -- Zooming
     key({},          "+",           function (w, m)    w:zoom_in(zoom_step  * m.count)       end, {count=1}),
@@ -194,25 +223,6 @@ add_binds("normal", {
     buf("^ZQ$",                     function (w) w:close_win() end),
     buf("^D$",                      function (w) w:close_win() end),
 
-    -- Bookmarking
-    key({},          "B",           function (w)       w:enter_cmd(":bookmark " .. ((w:get_current() or {}).uri or "http://") .. " ") end),
-    buf("^gb$",                     function (w)       w:navigate(bookmarks.dump_html()) end),
-    buf("^gB$",                     function (w, b, m) local u = bookmarks.dump_html() for i=1,m.count do w:new_tab(u) end end, {count=1}),
-
-    -- Mouse bindings
-    but({},          8,             function (w) w:back()     end),
-    but({},          9,             function (w) w:forward()  end),
-    but({},          2,             function (w)
-                                        -- Open hovered uri in new tab
-                                        local uri = w:get_current().hovered_uri
-                                        if uri then
-                                            w:new_tab(w:search_open(uri), false)
-                                        else -- Open selection in current tab
-                                            uri = luakit.get_selection()
-                                            if uri then w:navigate(w:search_open(uri)) end
-                                        end
-                                    end),
-
     -- Enter passthrough mode
     key({"Control"}, "z",           function (w) w:set_mode("passthrough") end),
 })
@@ -263,25 +273,28 @@ add_cmds({
     cmd({"viewsource!", "vs!"},         function (w)    w:toggle_source() end),
     cmd("inc[rease]",                   function (w, a) w:navigate(w:inc_uri(tonumber(a) or 1)) end),
     cmd({"javascript",   "js"},         function (w, a) w:eval_js(a, "javascript") end),
-    cmd("lua",                          function (w, a) assert(loadstring("return function(w) "..a.." end"))()(w) end),
-    cmd("dump",                         function (w, a)
-                                            local fname = string.gsub(w.win.title, '[^a-zA-Z0-9.-]', '_')..'.html' -- sanitize filename
-                                            local downdir = luakit.get_special_dir("DOWNLOAD") or "."
-                                            local file = a or luakit.save_file("Save file", w.win, downdir, fname)
-                                            if file then
-                                                local fd = assert(io.open(file, "w"), "failed to open: " .. file)
-                                                local html = assert(w:eval_js("document.documentElement.outerHTML", "dump"), "Unable to get HTML")
-                                                assert(fd:write(html), "unable to save html")
-                                                io.close(fd)
-                                                w:notify("Dumped HTML to: " .. file)
-                                            end
-                                        end),
-    cmd({"bookmark",    "bm" },         function (w, a)
-                                            local args = split(a)
-                                            local uri = table.remove(args, 1)
-                                            bookmarks.add(uri, args)
-                                        end),
-    cmd("bookdel",                      function (w, a) bookmarks.del(tonumber(a)) end),
+
+    cmd("lua", function (w, a)
+        if a then
+            local ret = assert(loadstring("return function(w) return "..a.." end"))()(w)
+            if ret then print(ret) end
+        else
+            w:set_mode("lua")
+        end
+    end),
+
+    cmd("dump", function (w, a)
+        local fname = string.gsub(w.win.title, '[^a-zA-Z0-9.-]', '_')..'.html' -- sanitize filename
+        local downdir = luakit.get_special_dir("DOWNLOAD") or "."
+        local file = a or luakit.save_file("Save file", w.win, downdir, fname)
+        if file then
+            local fd = assert(io.open(file, "w"), "failed to open: " .. file)
+            local html = assert(w:eval_js("document.documentElement.outerHTML", "dump"), "Unable to get HTML")
+            assert(fd:write(html), "unable to save html")
+            io.close(fd)
+            w:notify("Dumped HTML to: " .. file)
+        end
+    end),
 })
 
 -- vim: et:sw=4:ts=8:sts=4:tw=80

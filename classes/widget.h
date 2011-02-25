@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef LUAKIT_WIDGET_H
-#define LUAKIT_WIDGET_H
+#ifndef LUAKIT_CLASSES_WIDGET_H
+#define LUAKIT_CLASSES_WIDGET_H
 
 typedef struct widget_t widget_t;
 
@@ -42,6 +42,7 @@ widget_constructor_t widget_notebook;
 widget_constructor_t widget_vbox;
 widget_constructor_t widget_webview;
 widget_constructor_t widget_window;
+widget_constructor_t widget_socket;
 
 typedef const struct {
     luakit_token_t tok;

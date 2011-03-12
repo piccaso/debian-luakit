@@ -40,6 +40,15 @@ webview.init_funcs = {
         end)
     end,
 
+    -- Update history indicator
+    hist_update = function (view, w)
+        view:add_signal("load-status", function (v, status)
+            if w:is_current(v) then
+                w:update_hist(v)
+            end
+        end)
+    end,
+
     -- Update tab titles
     tablist_update = function (view, w)
         view:add_signal("load-status", function (v, status)
@@ -263,8 +272,9 @@ webview.methods = {
 
     -- Toggle source view
     toggle_source = function (view, w, show)
-        if show == nil then show = not view:get_view_source() end
-        view:set_view_source(show)
+        local showing = view:get_view_source()
+        if show == nil then show = not showing end
+        if show ~= showing then view:set_view_source(show) end
     end,
 
     -- Zoom functions

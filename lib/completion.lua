@@ -7,13 +7,12 @@
 local key = lousy.bind.key
 add_binds("command", {
     -- Start completion
-    key({}, "Tab",
-        function (w)
-            local i = w.ibar.input
-            -- Only complete commands, not args
-            if string.match(i.text, "%s") then return end
-            w:set_mode("cmdcomp")
-        end),
+    key({}, "Tab", function (w)
+        local i = w.ibar.input
+        -- Only complete commands, not args
+        if string.match(i.text, "%s") then return end
+        w:set_mode("cmdcomp")
+    end),
 })
 
 -- Exit completion
@@ -45,16 +44,18 @@ new_mode("cmdcomp", {
         -- Build completion table
         local cmpl = {{"Commands", title=true}}
         -- Get suitable commands
-        for _, b in ipairs(get_mode("command").commands) do
-            for i, c in ipairs(b.cmds) do
-                if string.match(c, pat) and not string.match(c, "!$") then
-                    if i == 1 then
-                        c = ":" .. c
-                    else
-                        c = string.format(":%s (:%s)", c, b.cmds[1])
+        for _, b in ipairs(get_mode("command").binds) do
+            if b.cmds then
+                for i, c in ipairs(b.cmds) do
+                    if string.match(c, pat) and not string.match(c, "!$") then
+                        if i == 1 then
+                            c = ":" .. c
+                        else
+                            c = string.format(":%s (:%s)", c, b.cmds[1])
+                        end
+                        table.insert(cmpl, { c, cmd = b.cmds[1] })
+                        break
                     end
-                    table.insert(cmpl, { c, cmd = b.cmds[1] })
-                    break
                 end
             end
         end
@@ -99,3 +100,5 @@ new_mode("cmdcomp", {
         w:enter_cmd(text .. " ")
     end,
 })
+
+-- vim: et:sw=4:ts=8:sts=4:tw=80

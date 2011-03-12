@@ -1,3 +1,9 @@
+luakit (2010.12.25+0310-1) unstable; urgency=low
+
+  * New upstream development snapshot.
+
+ -- Clint Adams <clint@debian.org>  Sat, 12 Mar 2011 11:02:40 -0500
+
 luakit (2010.12.25+0225-1) unstable; urgency=low
 
   * New upstream development snapshot.

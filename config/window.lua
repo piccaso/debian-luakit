@@ -35,6 +35,7 @@ function window.build()
                 layout = hbox(),
                 ebox   = eventbox(),
                 uri    = label(),
+                hist   = label(),
                 loaded = label(),
             },
             -- Fills space between the left and right aligned widgets
@@ -76,6 +77,7 @@ function window.build()
     -- Pack left-aligned statusbar elements
     local l = w.sbar.l
     l.layout:pack_start(l.uri,    false, false, 0)
+    l.layout:pack_start(l.hist,   false, false, 0)
     l.layout:pack_start(l.loaded, false, false, 0)
     l.ebox:set_child(l.layout)
 
@@ -110,6 +112,7 @@ function window.build()
     i.input.show_frame = false
     w.tabs.show_tabs = false
     l.loaded:hide()
+    l.hist:hide()
     l.uri.selectable = true
     r.ssl:hide()
 
@@ -137,6 +140,7 @@ window.init_funcs = {
             w:update_tablist(idx)
             w:update_buf()
             w:update_ssl(view)
+            w:update_hist(view)
         end)
         w.tabs:add_signal("page-reordered", function (nbook, view, idx)
             w:update_tab_count()
@@ -182,6 +186,7 @@ window.init_funcs = {
         -- Set foregrounds
         for wi, v in pairs({
             [s.l.uri]    = theme.uri_sbar_fg,
+            [s.l.hist]   = theme.hist_sbar_fg,
             [s.l.loaded] = theme.sbar_loaded_fg,
             [s.r.buf]    = theme.buf_sbar_fg,
             [s.r.tabi]   = theme.tabi_sbar_fg,
@@ -203,6 +208,7 @@ window.init_funcs = {
         -- Set fonts
         for wi, v in pairs({
             [s.l.uri]    = theme.uri_sbar_font,
+            [s.l.hist]   = theme.hist_sbar_font,
             [s.l.loaded] = theme.sbar_loaded_font,
             [s.r.buf]    = theme.buf_sbar_font,
             [s.r.ssl]    = theme.ssl_sbar_font,
@@ -252,7 +258,7 @@ window.methods = {
 
     -- Wrapper around the bind plugin's match_cmd method
     match_cmd = function (w, buffer)
-        return lousy.bind.match_cmd(w, get_mode("command").commands, buffer)
+        return lousy.bind.match_cmd(w, get_mode("command").binds, buffer)
     end,
 
     -- enter command or characters into command line
@@ -422,11 +428,11 @@ window.methods = {
     end,
 
     update_uri = function (w, view, uri, link)
-        if not view then view = w:get_current() end
         local u, escape = w.sbar.l.uri, lousy.util.escape
         if link then
             u.text = "Link: " .. escape(link)
         else
+            if not view then view = w:get_current() end
             u.text = escape((uri or (view and view.uri) or "about:blank"))
         end
     end,
@@ -479,6 +485,19 @@ window.methods = {
             ssl:show()
         else
             ssl:hide()
+        end
+    end,
+
+    update_hist = function (w, view)
+        if not view then view = w:get_current() end
+        local hist = w.sbar.l.hist
+        local back, forward = view:can_go_back(), view:can_go_forward()
+        local s = (back and "+" or "") .. (forward and "-" or "")
+        if s ~= "" then
+            hist.text = '['..s..']'
+            hist:show()
+        else
+            hist:hide()
         end
     end,
 
@@ -588,7 +607,18 @@ window.methods = {
         w:update_tablist()
     end,
 
-    close_win = function (w)
+    close_win = function (w, force)
+        -- Ask plugins if it's OK to close last window
+        if not force and (#luakit.windows == 1) then
+            local emsg = luakit.emit_signal("can-close", w)
+            if emsg then
+                assert(type(emsg) == "string", "invalid exit error message")
+                w:error(string.format("Can't close luakit: %s (force close "
+                    .. "with :q! or :wq!)", emsg))
+                return false
+            end
+        end
+
         w:emit_signal("close")
 
         -- Close all tabs
@@ -660,36 +690,55 @@ window.methods = {
 
     -- Intelligent open command which can detect a uri or search argument.
     search_open = function (w, arg)
-        if not arg then return "about:blank" end
-        args = lousy.util.string.split(lousy.util.string.strip(arg))
-        -- Detect localhost, scheme:// or domain-like beginning in string
+        local lstring = lousy.util.string
+        local match, find = string.match, string.find
+
+        -- Detect blank uris
+        if not arg or match(arg, "^%s*$") then return "about:blank" end
+
+        -- Strip whitespace and split by whitespace into args table
+        local args = lstring.split(lstring.strip(arg))
+
+        -- Guess if first argument is an address, search engine, file
         if #args == 1 then
             local uri = args[1]
             if uri == "about:blank" then return uri end
-            local ip = string.match(uri, "^(%d+.%d+.%d+.%d+)$")
-            local scheme = string.match(uri, "^%w+://")
-            local localhost = string.match(uri, "^localhost[:/]%S*") or string.match(uri, "^localhost$")
-            -- Extract domain from before the first colon or slash
-            local domain = string.match(uri, "^([%w%-_%.]+)[:/]%S*") or string.match(uri, "^([%w%-_%.]+)$")
-            -- A valid domain consists of [%w%-_%.] and has at least one dot
-            -- with at least one [%w%-_] on the left and a TLD on the right
-            -- with at least two letters
-            if ip or scheme or localhost or (domain and string.match(domain, "^[%w%-_%.]*[%w%-_]%.%a%a[%a%.]*$")) then
-                return uri
+
+            -- Check if search engine name
+            if search_engines[uri] then
+                return string.format(search_engines[uri], "")
+            end
+
+            -- Navigate if . or / in uri (I.e. domains, IP's, scheme://)
+            if find(uri, "%.") or find(uri, "/") then return uri end
+
+            -- Valid hostnames to check
+            local hosts = { "localhost" }
+            if globals.load_etc_hosts ~= false then
+                hosts = lousy.util.get_etc_hosts()
+            end
+
+            -- Check hostnames
+            for _, h in pairs(hosts) do
+                if h == uri or match(uri, "^"..h..":%d+$") then return uri end
+            end
+
+            -- Check for file in filesystem
+            if globals.check_filepath ~= false then
+                if lfs.attributes(uri) then return "file://" .. uri end
             end
         end
-        -- Find search engine
+
+        -- Find search engine (or use search_engines.default)
         local engine = "default"
-        if #args >= 1 and search_engines[args[1]] then
+        if args[1] and search_engines[args[1]] then
             engine = args[1]
             table.remove(args, 1)
         end
 
-        -- Percent-encode arguments
+        -- URI encode search terms
         local terms = luakit.uri_encode(table.concat(args, " "))
-
-        -- Return search terms sub'd into search string
-        return ({string.gsub(search_engines[engine], "{%d}", ({string.gsub(terms, "%%", "%%%%")})[1])})[1]
+        return string.format(search_engines[engine], terms)
     end,
 
     -- Increase (or decrease) the last found number in the current uri

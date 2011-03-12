@@ -1,8 +1,10 @@
-add_id
 append
 atindex
 bg
 cache_dir
+can_go_back
+can_go_forward
+changes
 clear_search
 config_dir
 confpath
@@ -18,6 +20,7 @@ domain
 DOWNLOAD
 elapsed_time
 entry
+error
 eval_js
 eventbox
 exec
@@ -53,7 +56,6 @@ indexof
 insert
 install_path
 interval
-is_plugged
 label
 loading
 loading_chrome
@@ -96,7 +98,6 @@ show_border
 show_frame
 show_scrollbars
 show_tabs
-socket
 spacing
 spawn
 spawn_sync

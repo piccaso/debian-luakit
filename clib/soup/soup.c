@@ -1,7 +1,7 @@
 /*
- * classes/soup/soup.c - soup library
+ * clib/soup/soup.c - soup library
  *
- * Copyright (C) 2011 Mason Larobina <mason.larobina@gmail.com>
+ * Copyright © 2011 Mason Larobina <mason.larobina@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
  *
  */
 
-#include "classes/soup/soup.h"
+#include "clib/soup/soup.h"
 #include "common/property.h"
 
 #include <libsoup/soup.h>

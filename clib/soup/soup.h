@@ -1,7 +1,7 @@
 /*
- * classes/soup/soup.h - soup library
+ * clib/soup/soup.h - soup library
  *
- * Copyright (C) 2011 Mason Larobina <mason.larobina@gmail.com>
+ * Copyright © 2011 Mason Larobina <mason.larobina@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,11 +18,11 @@
  *
  */
 
-#ifndef LUAKIT_CLASSES_SOUP_H
-#define LUAKIT_CLASSES_SOUP_H
+#ifndef LUAKIT_CLIB_SOUP_H
+#define LUAKIT_CLIB_SOUP_H
 
-#include "classes/soup/cookiejar.h"
-#include "classes/soup/auth.h"
+#include "clib/soup/cookiejar.h"
+#include "clib/soup/auth.h"
 #include "luah.h"
 
 #include <libsoup/soup-session.h>

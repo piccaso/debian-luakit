@@ -1,8 +1,8 @@
 /*
- * classes/soup/auth.c - authentication management
+ * clib/soup/auth.c - authentication management
  *
- * Copyright (C) 2009 Igalia S.L.
- * Copyright (C) 2010 Fabian Streitel <karottenreibe@gmail.com>
+ * Copyright © 2009 Igalia S.L.
+ * Copyright © 2010 Fabian Streitel <karottenreibe@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
  *
  */
 
-#include "classes/soup/soup.h"
+#include "clib/soup/soup.h"
 #include "luah.h"
 
 #include <gtk/gtk.h>

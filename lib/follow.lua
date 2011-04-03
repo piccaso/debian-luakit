@@ -1,8 +1,8 @@
----------------------------------------------------------
--- Vimperator-like link following script for luakit    --
--- (C) 2010 Fabian Streitel <karottenreibe@gmail.com>  --
--- (C) 2010 Mason Larobina  <mason.larobina@gmail.com> --
----------------------------------------------------------
+-------------------------------------------------------
+-- Vimperator-like link following script for luakit  --
+-- © 2010 Fabian Streitel <karottenreibe@gmail.com>  --
+-- © 2010 Mason Larobina  <mason.larobina@gmail.com> --
+-------------------------------------------------------
 
 local ipairs, pairs = ipairs, pairs
 local table, string = table, string
@@ -762,7 +762,7 @@ new_mode("follow", {
             -- Make theme js
             for k, v in pairs(get_theme()) do
                 if type(v) == "number" then
-                    table.insert(js_blocks, string.format("follow.theme.%s = %f;", k, v))
+                    table.insert(js_blocks, string.format("follow.theme.%s = %s;", k, lousy.util.ntos(v)))
                 else
                     table.insert(js_blocks, string.format("follow.theme.%s = %q;", k, v))
                 end

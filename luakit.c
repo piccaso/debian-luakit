@@ -1,8 +1,7 @@
 /*
  * luakit.c - luakit main functions
  *
- * Copyright (C) 2010 Mason Larobina <mason.larobina@gmail.com>
- * Copyright (C) 2009 Enno Boland <gottox@s01.de>
+ * Copyright © 2010-2011 Mason Larobina <mason.larobina@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +21,6 @@
 #include "globalconf.h"
 #include "common/util.h"
 #include "luah.h"
-#include "luakit.h"
 
 #include <gtk/gtk.h>
 #include <signal.h>
@@ -30,7 +28,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <errno.h>
-#include <locale.h>
 
 static void sigchld(int sigint);
 
@@ -49,9 +46,6 @@ init_lua(gchar **uris)
     /* init globalconf structs */
     globalconf.signals = signal_new();
     globalconf.windows = g_ptr_array_new();
-
-    /* set numeric locale to C */
-    setlocale(LC_NUMERIC, "C");
 
     /* init lua */
     luaH_init();

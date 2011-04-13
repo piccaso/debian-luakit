@@ -1,3 +1,10 @@
+luakit (2011.04.13-1) unstable; urgency=low
+
+  * New upstream bugfix release.
+  * Set term to x-terminal-emulator instead of xterm.  closes: #604899.
+
+ -- Clint Adams <clint@debian.org>  Wed, 13 Apr 2011 12:43:47 -0400
+
 luakit (2011.04.04-1) unstable; urgency=low
 
   * New upstream release.

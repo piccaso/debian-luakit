@@ -18,14 +18,19 @@
  *
  */
 
-#include "luah.h"
+#include "common/signal.h"
 #include "clib/widget.h"
+#include "clib/luakit.h"
+#include "luah.h"
 
 #include <glib.h>
 #include <gtk/gtk.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <webkit/webkit.h>
+
+/* setup luakit module signals */
+LUA_CLASS_FUNCS(luakit, luakit_class)
 
 /* Returns a string from X selection.
  * \param L The Lua VM state.
@@ -408,53 +413,6 @@ luaH_luakit_index(lua_State *L)
     return 0;
 }
 
-/* Add a global signal.
- * Returns the number of elements pushed on stack.
- * \luastack
- * \lparam A string with the event name.
- * \lparam The function to call.
- */
-static gint
-luaH_luakit_add_signal(lua_State *L)
-{
-    const gchar *name = luaL_checkstring(L, 1);
-    luaH_checkfunction(L, 2);
-    signal_add(globalconf.signals, name, luaH_object_ref(L, 2));
-    return 0;
-}
-
-/* Remove a global signal.
- * \param L The Lua VM state.
- * \return The number of elements pushed on stack.
- * \luastack
- * \lparam A string with the event name.
- * \lparam The function to call.
- */
-static gint
-luaH_luakit_remove_signal(lua_State *L)
-{
-    const gchar *name = luaL_checkstring(L, 1);
-    luaH_checkfunction(L, 2);
-    gpointer func = (gpointer) lua_topointer(L, 2);
-    signal_remove(globalconf.signals, name, func);
-    luaH_object_unref(L, (gpointer) func);
-    return 0;
-}
-
-/* Emit a global signal.
- * \param L The Lua VM state.
- * \return The number of elements pushed on stack.
- * \luastack
- * \lparam A string with the event name.
- * \lparam The function to call.
- */
-static gint
-luaH_luakit_emit_signal(lua_State *L)
-{
-    return signal_object_emit(L, globalconf.signals, luaL_checkstring(L, 1),
-        lua_gettop(L) - 1, LUA_MULTRET);
-}
-
 /* exit main gtk loop */
 static gint
 luaH_luakit_quit(lua_State *L)
@@ -464,15 +422,59 @@ luaH_luakit_quit(lua_State *L)
     return 0;
 }
 
+static gboolean
+idle_cb(gpointer func)
+{
+    lua_State *L = globalconf.L;
+
+    /* get original stack size */
+    gint top = lua_gettop(L);
+    gboolean keep = FALSE;
+
+    /* call function */
+    luaH_object_push(L, func);
+    if (lua_pcall(L, 0, 1, 0))
+        /* remove idle source if error in callback */
+        warn("error in idle func: %s", lua_tostring(L, -1));
+    else
+        /* keep the source alive? */
+        keep = lua_toboolean(L, -1);
+
+    /* allow collection of idle callback func */
+    if (!keep)
+        luaH_object_unref(L, func);
+
+    /* leave stack how we found it */
+    lua_settop(L, top);
+
+    return keep;
+}
+
+static gint
+luaH_luakit_idle_add(lua_State *L)
+{
+    luaH_checkfunction(L, 1);
+    gpointer func = luaH_object_ref(L, 1);
+    g_idle_add(idle_cb, func);
+    return 0;
+}
+
+static gint
+luaH_luakit_idle_remove(lua_State *L)
+{
+    luaH_checkfunction(L, 1);
+    gpointer func = luaH_object_ref(L, 1);
+    lua_pushboolean(L, g_idle_remove_by_data(func));
+    return 1;
+}
+
 void
 luakit_lib_setup(lua_State *L)
 {
     static const struct luaL_reg luakit_lib[] =
     {
+        LUA_CLASS_METHODS(luakit)
         { "__index",         luaH_luakit_index },
-        { "add_signal",      luaH_luakit_add_signal },
-        { "emit_signal",     luaH_luakit_emit_signal },
-        { "remove_signal",   luaH_luakit_remove_signal },
         { "exec",            luaH_luakit_exec },
         { "get_special_dir", luaH_luakit_get_special_dir },
         { "quit",            luaH_luakit_quit },
@@ -484,8 +486,13 @@ luakit_lib_setup(lua_State *L)
         { "time",            luaH_luakit_time },
         { "uri_decode",      luaH_luakit_uri_decode },
         { "uri_encode",      luaH_luakit_uri_encode },
+        { "idle_add",        luaH_luakit_idle_add },
+        { "idle_remove",     luaH_luakit_idle_remove },
         { NULL,              NULL }
     };
+
+    /* create signals array */
+    luakit_class.signals = signal_new();
 
     /* export luakit lib */
     luaH_openlib(L, "luakit", luakit_lib, luakit_lib);

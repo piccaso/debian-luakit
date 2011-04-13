@@ -38,12 +38,14 @@ module("downloads")
 
 -- Track speed data for downloads by weak table
 local speeds = setmetatable({}, { __mode = "k" })
+-- Track which downloads are being opened
+opening = setmetatable({}, { __mode = "k" })
 
 --- The list of active download objects.
 downloads = {}
 
 -- Setup signals on downloads module
-lousy.signal.setup(_M)
+lousy.signal.setup(_M, true)
 
 -- Calculates a fancy name for a download to show to the user.
 function get_basename(d)
@@ -118,7 +120,7 @@ function add(arg, opts)
         string.format("expected uri or download object, got: %s", type(d) or "nil"))
 
     -- Emit signal to determine the download location.
-    local file = _M:emit_signal("download-location", d.uri, d.suggested_filename)
+    local file = _M.emit_signal("download-location", d.uri, d.suggested_filename)
 
     -- Check return type
     assert(file == nil or type(file) == "string" and #file > 1,
@@ -169,10 +171,12 @@ end
 function open(d, w)
     d = get_download(d)
     local t = capi.timer{interval=1000}
+    opening[d] = true
     t:add_signal("timeout", function (t)
         if d.status == "finished" then
             t:stop()
-            if _M:emit_signal("open-file", d.destination, d.mime_type, w) ~= true then
+            opening[d] = false
+            if _M.emit_signal("open-file", d.destination, d.mime_type, w) ~= true then
                 if w then
                     w:error(string.format("Can't open: %q (%s)", d.desination, d.mime_type))
                 end

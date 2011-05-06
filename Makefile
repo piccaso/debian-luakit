@@ -51,28 +51,32 @@ apidoc: luadoc/luakit.lua
 	mkdir -p apidocs
 	luadoc --nofiles -d apidocs luadoc/* lib/*
 
+doc: globalconf.h $(THEAD) $(TSRC)
+	doxygen -s luakit.doxygen
+
 clean:
-	rm -rf apidocs luakit $(OBJS) $(TSRC) $(THEAD) globalconf.h luakit.1
+	rm -rf apidocs doc luakit $(OBJS) $(TSRC) $(THEAD) globalconf.h luakit.1
 
 install:
 	install -d $(INSTALLDIR)/share/luakit/
 	install -d $(DOCDIR)
 	install -m644 README.md AUTHORS COPYING* $(DOCDIR)
-	cp -r lib/ $(INSTALLDIR)/share/luakit/
+	cp -r lib $(INSTALLDIR)/share/luakit/
 	chmod 755 $(INSTALLDIR)/share/luakit/lib/
 	chmod 755 $(INSTALLDIR)/share/luakit/lib/lousy/
 	chmod 755 $(INSTALLDIR)/share/luakit/lib/lousy/widget/
 	chmod 644 $(INSTALLDIR)/share/luakit/lib/*.lua
 	chmod 644 $(INSTALLDIR)/share/luakit/lib/lousy/*.lua
 	chmod 644 $(INSTALLDIR)/share/luakit/lib/lousy/widget/*.lua
-	install -D luakit $(INSTALLDIR)/bin/luakit
+	install -d $(INSTALLDIR)/bin
+	install luakit $(INSTALLDIR)/bin/luakit
 	install -d $(DESTDIR)/etc/xdg/luakit/
-	install -D config/*.lua $(DESTDIR)/etc/xdg/luakit/
+	install config/*.lua $(DESTDIR)/etc/xdg/luakit/
 	chmod 644 $(DESTDIR)/etc/xdg/luakit/*.lua
-	install -d $(DESTDIR)/usr/share/pixmaps/
-	install -D extras/luakit.png $(DESTDIR)/usr/share/pixmaps/
-	install -d $(DESTDIR)/usr/share/applications/
-	install -D extras/luakit.desktop $(DESTDIR)/usr/share/applications/
+	install -d $(DESTDIR)/usr/share/pixmaps
+	install extras/luakit.png $(DESTDIR)/usr/share/pixmaps/
+	install -d $(DESTDIR)/usr/share/applications
+	install extras/luakit.desktop $(DESTDIR)/usr/share/applications/
 	install -d $(INSTALLDIR)/share/man/man1/
 	install -m644 luakit.1 $(INSTALLDIR)/share/man/man1/
 
@@ -81,4 +85,4 @@ uninstall:
 	rm -rf /usr/share/applications/luakit.desktop /usr/share/pixmaps/luakit.png
 
 newline: options;@echo
-.PHONY: all clean options install newline apidoc
+.PHONY: all clean options install newline apidoc doc

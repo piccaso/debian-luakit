@@ -1,0 +1,5 @@
+?package(luakit):needs="x11" section="Applications/Network/Web Browsing" \
+        title="Luakit" \
+        longtitle="Luakit Web Browser" \
+        icon="/usr/share/pixmaps/luakit.png" \
+        command="luakit"

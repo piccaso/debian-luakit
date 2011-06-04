@@ -41,10 +41,13 @@ binary-arch:	checkroot build install
 	$(checkdir)
 
 	cd debian/$(package) && $(INSTALL_DIR) usr/share/doc/$(package) \
+		usr/share/menu \
 		DEBIAN
 
 	$(INSTALL_FILE) debian/copyright debian/$(package)/usr/share/doc/$(package)/copyright
 	$(INSTALL_FILE) debian/changelog debian/$(package)/usr/share/doc/$(package)/changelog.Debian
+	$(INSTALL_FILE) debian/menu debian/$(package)/usr/share/menu/$(package)
+
 	$(INSTALL_FILE) debian/conffiles debian/$(package)/DEBIAN/conffiles
 	$(INSTALL_SCRIPT) debian/postinst debian/$(package)/DEBIAN/postinst
 	$(INSTALL_SCRIPT) debian/prerm debian/$(package)/DEBIAN/prerm

@@ -1,8 +1,8 @@
 /*
- * widget.h - widget managing header
+ * clib/widget.h - widget managing header
  *
- * Copyright (C) 2010 Mason Larobina <mason.larobina@gmail.com>
- * Copyright (C) 2007-2009 Julien Danjou <julien@danjou.info>
+ * Copyright © 2010 Mason Larobina <mason.larobina@gmail.com>
+ * Copyright © 2007-2009 Julien Danjou <julien@danjou.info>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef LUAKIT_CLASSES_WIDGET_H
-#define LUAKIT_CLASSES_WIDGET_H
+#ifndef LUAKIT_CLIB_WIDGET_H
+#define LUAKIT_CLIB_WIDGET_H
 
 typedef struct widget_t widget_t;
 
@@ -28,7 +28,6 @@ typedef struct widget_t widget_t;
 #include "common/luaclass.h"
 #include "common/luaobject.h"
 #include "luah.h"
-#include "luakit.h"
 
 #include <gtk/gtk.h>
 
@@ -76,14 +75,9 @@ void widget_class_setup(lua_State *);
 static inline widget_t*
 luaH_checkwidget(lua_State *L, gint udx)
 {
-    static gchar *emsg = NULL;
-    if (emsg) { g_free(emsg); emsg = NULL; }
-
     widget_t *w = luaH_checkudata(L, udx, &widget_class);
-    if (!w->widget) {
-        emsg = g_strdup_printf("given/using destroyed widget (of type: %s)", w->info->name);
-        luaL_argerror(L, udx, emsg);
-    }
+    if (!w->widget)
+        luaL_argerror(L, udx, "using destroyed widget");
     return w;
 }
 
@@ -94,6 +88,8 @@ luaH_checkwidgetornil(lua_State *L, gint udx)
         return NULL;
     return luaH_checkwidget(L, udx);
 }
+
+#define luaH_towidget(L, udx) luaH_toudata(L, udx, &widget_class)
 
 #endif
 

@@ -1,7 +1,7 @@
--------------------------------------------------------------
--- Save history in sqlite3 database                        --
--- (C) 2010-2011 Mason Larobina <mason.larobina@gmail.com> --
--------------------------------------------------------------
+-----------------------------------------------------------
+-- Save history in sqlite3 database                      --
+-- © 2010-2011 Mason Larobina <mason.larobina@gmail.com> --
+-----------------------------------------------------------
 
 local os = require "os"
 local webview = webview
@@ -13,7 +13,7 @@ local capi = { luakit = luakit, sqlite3 = sqlite3 }
 module "history"
 
 -- Setup signals on history module
-lousy.signal.setup(_M)
+lousy.signal.setup(_M, true)
 
 db = capi.sqlite3{ filename = capi.luakit.data_dir .. "/history.db" }
 db:exec("PRAGMA synchronous = OFF; PRAGMA secure_delete = 1;")
@@ -33,7 +33,7 @@ function add(uri, title, update_visits)
     -- Ignore blank uris
     if not uri or uri == "" or uri == "about:blank" then return end
     -- Ask user if we should ignore uri
-    if _M:emit_signal("add", uri, title) == false then return end
+    if _M.emit_signal("add", uri, title) == false then return end
 
     local escape, format = lousy.util.sql_escape, string.format
 
@@ -88,14 +88,22 @@ end
 webview.init_funcs.save_hist = function (view)
     -- Add items
     view:add_signal("load-status", function (v, status)
-        -- We use "committed" here instead of "first-visual" becase we want
-        -- this to fire before the "property::title" signal.
+        -- Don't add history items when in private browsing mode
+        if v:get_property("enable-private-browsing") then return end
+
+        -- We use the "committed" status here because we are not interested in
+        -- any intermediate uri redirects taken before reaching the real uri.
+        -- The "property::title" signal takes care of filling in the history
+        -- item title.
         if status == "committed" then
             add(v.uri)
         end
     end)
     -- Update titles
     view:add_signal("property::title", function (v)
+        -- Don't add history items when in private browsing mode
+        if v:get_property("enable-private-browsing") then return end
+
         local title = v:get_property("title")
         if title and title ~= "" then
             add(v.uri, title, false)

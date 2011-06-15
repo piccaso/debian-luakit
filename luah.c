@@ -1,8 +1,8 @@
 /*
  * luah.c - Lua helper functions
  *
- * Copyright (C) 2010 Mason Larobina <mason.larobina@gmail.com>
- * Copyright (C) 2008-2009 Julien Danjou <julien@danjou.info>
+ * Copyright © 2010-2011 Mason Larobina <mason.larobina@gmail.com>
+ * Copyright © 2008-2009 Julien Danjou <julien@danjou.info>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,21 +19,19 @@
  *
  */
 
-#include "common/util.h"
-#include "common/lualib.h"
-#include "luakit.h"
-#include "classes/download.h"
-#include "classes/soup/soup.h"
-#include "classes/sqlite3.h"
-#include "classes/timer.h"
-#include "classes/widget.h"
 #include "luah.h"
 
+/* include clib headers */
+#include "clib/download.h"
+#include "clib/soup/soup.h"
+#include "clib/sqlite3.h"
+#include "clib/timer.h"
+#include "clib/widget.h"
+#include "clib/luakit.h"
+#include "clib/unique.h"
+
+#include <glib.h>
 #include <gtk/gtk.h>
-#include <stdlib.h>
-#include <sys/wait.h>
-#include <webkit/webkit.h>
-#include <time.h>
 
 void
 luaH_modifier_table_push(lua_State *L, guint state) {
@@ -111,7 +109,7 @@ luaHe_next(lua_State *L)
  * next elements. `idx` is the index number of elements in stack.
  * Returns 1 if more elements to come, 0 otherwise. */
 gint
-luaH_next(lua_State *L, gint idx)
+luaH_mtnext(lua_State *L, gint idx)
 {
     if(luaL_getmetafield(L, idx, "__next")) {
         /* if idx is relative, reduce it since we got __next */
@@ -238,7 +236,7 @@ gboolean
 luaH_hasitem(lua_State *L, gconstpointer item)
 {
     lua_pushnil(L);
-    while(luaH_next(L, -2)) {
+    while(luaH_mtnext(L, -2)) {
         if(lua_topointer(L, -1) == item) {
             /* remove value and key */
             lua_pop(L, 2);
@@ -278,7 +276,7 @@ luaH_isloop_check(lua_State *L, GPtrArray *elems)
 
         /* look every object in the "table" */
         lua_pushnil(L);
-        while(luaH_next(L, -2)) {
+        while(luaH_mtnext(L, -2)) {
             if(!luaH_isloop_check(L, elems)) {
                 /* remove key and value */
                 lua_pop(L, 2);
@@ -317,402 +315,10 @@ luaH_isloop(lua_State *L, gint idx)
     return !ret;
 }
 
-/* Returns a string from X selection.
- * \param L The Lua VM state.
- * \return The number of elements pushed on stack (1).
- */
-static gint
-luaH_luakit_get_selection(lua_State *L)
-{
-    gint n = lua_gettop(L);
-    GdkAtom atom = GDK_SELECTION_PRIMARY;
-
-    if (n) {
-        const gchar *arg = luaL_checkstring(L, 1);
-        /* Follow xclip(1) behavior: check only the first character of argument */
-        switch (arg[0]) {
-          case 'p':
-            break;
-          case 's':
-            atom = GDK_SELECTION_SECONDARY;
-            break;
-          case 'c':
-            atom = GDK_SELECTION_CLIPBOARD;
-            break;
-          default:
-            luaL_argerror(L, 1, "should be 'primary', 'secondary' or 'clipboard'");
-            break;
-        }
-    }
-    GtkClipboard *selection = gtk_clipboard_get(atom);
-    gchar *text = gtk_clipboard_wait_for_text(selection);
-    lua_pushstring(L, text);
-    g_free(text);
-    return 1;
-}
-
-/* Sets an X selection.
- * \param L The Lua VM state.
- * \return The number of elements pushed on stack (0).
- */
-static gint
-luaH_luakit_set_selection(lua_State *L)
-{
-    gint n = lua_gettop(L);
-    GdkAtom atom = GDK_SELECTION_PRIMARY;
-
-    if (0 == n)
-        luaL_error(L, "missing argument, string expected");
-    const gchar *text = luaL_checkstring(L, 1);
-    if (1 < n)
-    {
-        const gchar *arg = luaL_checkstring(L, 2);
-        /* Follow xclip(1) behavior: check only the first character of argument */
-        switch (arg[0]) {
-          case 'p':
-            break;
-          case 's':
-            atom = GDK_SELECTION_SECONDARY;
-            break;
-          case 'c':
-            atom = GDK_SELECTION_CLIPBOARD;
-            break;
-          default:
-            luaL_argerror(L, 1, "should be 'primary', 'secondary' or 'clipboard'");
-            break;
-        }
-    }
-    GtkClipboard *selection = gtk_clipboard_get(atom);
-    glong len = g_utf8_strlen (text, -1);
-    gtk_clipboard_set_text(selection, text, len);
-    return 0;
-}
-
-/* Escapes a string for use in a URI.
- * \param L The Lua VM state.
- * \return The number of elements pushed on stack (1).
- */
-static gint
-luaH_luakit_uri_encode(lua_State *L)
-{
-    const gchar *string = luaL_checkstring(L, 1);
-    gchar *res = g_uri_escape_string(string, NULL, false);
-    lua_pushstring(L, res);
-    g_free(res);
-    return 1;
-}
-
-/* Unescapes a whole escaped string.
- * \param L The Lua VM state.
- * \return The number of elements pushed on stack (1).
- */
-static gint
-luaH_luakit_uri_decode(lua_State *L)
-{
-    const gchar *string = luaL_checkstring(L, 1);
-    gchar *res = g_uri_unescape_string(string, NULL);
-    lua_pushstring(L, res);
-    g_free(res);
-    return 1;
-}
-
-/* Shows a Gtk save dialog.
- * \param L The Lua VM state.
- * \return The number of objects pushed onto the stack.
- * \luastack
- * \lparam title The title of the dialog.
- * \lparam parent The parent window of the dialog or nil.
- * \lparam default_folder The folder to initially display in the dialog.
- * \lparam default_name The filename to preselect in the dialog.
- * \lreturn The name of the selected file or nil if the dialog was cancelled.
- */
-static gint
-luaH_luakit_save_file(lua_State *L)
-{
-    const gchar *title = luaL_checkstring(L, 1);
-    // decipher the parent
-    GtkWindow *parent_window;
-    if (lua_isnil(L, 2)) {
-        parent_window = NULL;
-    } else {
-        widget_t *parent = luaH_checkudata(L, 2, &widget_class);
-        if (GTK_IS_WINDOW(parent->widget)) {
-            parent_window = GTK_WINDOW(parent->widget);
-        } else {
-            luaH_warn(L, "dialog expects a window as parent, but some other widget was given");
-            parent_window = NULL;
-        }
-    }
-    const gchar *default_folder = luaL_checkstring(L, 3);
-    const gchar *default_name = luaL_checkstring(L, 4);
-    GtkWidget *dialog = gtk_file_chooser_dialog_new(title,
-            parent_window,
-            GTK_FILE_CHOOSER_ACTION_SAVE,
-            GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-            GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
-            NULL);
-    // set default folder, name and overwrite confirmation policy
-    gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), default_folder);
-    gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(dialog), default_name);
-    gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
-    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-        gchar *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-        lua_pushstring(L, filename);
-        g_free(filename);
-    } else
-        lua_pushnil(L);
-    gtk_widget_destroy(dialog);
-    return 1;
-}
-
-static gint
-luaH_luakit_get_special_dir(lua_State *L)
-{
-    const gchar *name = luaL_checkstring(L, 1);
-    luakit_token_t token = l_tokenize(name);
-    GUserDirectory atom;
-    /* match token with G_USER_DIR_* atom */
-    switch(token) {
-      case L_TK_DESKTOP:      atom = G_USER_DIRECTORY_DESKTOP;      break;
-      case L_TK_DOCUMENTS:    atom = G_USER_DIRECTORY_DOCUMENTS;    break;
-      case L_TK_DOWNLOAD:     atom = G_USER_DIRECTORY_DOWNLOAD;     break;
-      case L_TK_MUSIC:        atom = G_USER_DIRECTORY_MUSIC;        break;
-      case L_TK_PICTURES:     atom = G_USER_DIRECTORY_PICTURES;     break;
-      case L_TK_PUBLIC_SHARE: atom = G_USER_DIRECTORY_PUBLIC_SHARE; break;
-      case L_TK_TEMPLATES:    atom = G_USER_DIRECTORY_TEMPLATES;    break;
-      case L_TK_VIDEOS:       atom = G_USER_DIRECTORY_VIDEOS;       break;
-      default:
-        warn("unknown atom G_USER_DIRECTORY_%s", name);
-        luaL_argerror(L, 1, "invalid G_USER_DIRECTORY_* atom");
-        return 0;
-    }
-    lua_pushstring(L, g_get_user_special_dir(atom));
-    return 1;
-}
-
-/* Spawns a command synchonously.
- * \param L The Lua VM state.
- * \return The number of elements pushed on stack (3).
- */
-static gint
-luaH_luakit_spawn_sync(lua_State *L)
-{
-    GError *e = NULL;
-    gchar *_stdout = NULL;
-    gchar *_stderr = NULL;
-    gint rv;
-    struct sigaction sigact;
-    struct sigaction oldact;
-
-    const gchar *command = luaL_checkstring(L, 1);
-
-    /* Note: we have to temporarily clear the SIGCHLD handler. Otherwise
-     * g_spawn_sync wouldn't be able to read subprocess' return value. */
-    sigact.sa_handler=SIG_DFL;
-    sigemptyset (&sigact.sa_mask);
-    sigact.sa_flags=0;
-    if (sigaction(SIGCHLD, &sigact, &oldact))
-        fatal("Can't clear SIGCHLD handler");
-    g_spawn_command_line_sync(command, &_stdout, &_stderr, &rv, &e);
-    if (sigaction(SIGCHLD, &oldact, NULL))
-        fatal("Can't restore SIGCHLD handler");
-
-    if(e)
-    {
-        lua_pushstring(L, e->message);
-        g_clear_error(&e);
-        lua_error(L);
-    }
-    lua_pushinteger(L, WEXITSTATUS(rv));
-    lua_pushstring(L, _stdout);
-    lua_pushstring(L, _stderr);
-    g_free(_stdout);
-    g_free(_stderr);
-    return 3;
-}
-
-/* Spawns a command.
- * \param L The Lua VM state.
- * \return The number of elements pushed on stack (0).
- */
-static gint
-luaH_luakit_spawn(lua_State *L)
-{
-    GError *e = NULL;
-    const gchar *command = luaL_checkstring(L, 1);
-    g_spawn_command_line_async(command, &e);
-    if(e)
-    {
-        lua_pushstring(L, e->message);
-        g_clear_error(&e);
-        lua_error(L);
-    }
-    return 0;
-}
-
-static gint
-luaH_luakit_time(lua_State *L)
-{
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    lua_pushnumber(L, ts.tv_sec + (ts.tv_nsec / 1e9));
-    return 1;
-}
-
-static gint
-luaH_exec(lua_State *L)
-{
-    const gchar *cmd = luaL_checkstring(L, 1);
-    l_exec(cmd);
-    return 0;
-}
-
-/* luakit global table.
- * \param L The Lua VM state.
- * \return The number of elements pushed on stack.
- * \luastack
- * \lfield font The default font.
- * \lfield font_height The default font height.
- * \lfield conffile The configuration file which has been loaded.
- */
-static gint
-luaH_luakit_index(lua_State *L)
-{
-    if(luaH_usemetatable(L, 1, 2))
-        return 1;
-
-    widget_t *w;
-    const gchar *prop = luaL_checkstring(L, 2);
-    luakit_token_t token = l_tokenize(prop);
-
-    switch(token) {
-
-      /* push class methods */
-      PF_CASE(TIME,             luaH_luakit_time)
-      PF_CASE(GET_SPECIAL_DIR,  luaH_luakit_get_special_dir)
-      PF_CASE(SAVE_FILE,        luaH_luakit_save_file)
-      PF_CASE(SPAWN,            luaH_luakit_spawn)
-      PF_CASE(SPAWN_SYNC,       luaH_luakit_spawn_sync)
-      PF_CASE(GET_SELECTION,    luaH_luakit_get_selection)
-      PF_CASE(SET_SELECTION,    luaH_luakit_set_selection)
-      PF_CASE(EXEC,             luaH_exec)
-      PF_CASE(URI_ENCODE,       luaH_luakit_uri_encode)
-      PF_CASE(URI_DECODE,       luaH_luakit_uri_decode)
-      /* push string properties */
-      PS_CASE(CACHE_DIR,        globalconf.cache_dir)
-      PS_CASE(CONFIG_DIR,       globalconf.config_dir)
-      PS_CASE(DATA_DIR,         globalconf.data_dir)
-      PS_CASE(EXECPATH,         globalconf.execpath)
-      PS_CASE(CONFPATH,         globalconf.confpath)
-      /* push boolean properties */
-      PB_CASE(VERBOSE,          globalconf.verbose)
-      /* push integer properties */
-      PI_CASE(WEBKIT_MAJOR_VERSION, webkit_major_version())
-      PI_CASE(WEBKIT_MINOR_VERSION, webkit_minor_version())
-      PI_CASE(WEBKIT_MICRO_VERSION, webkit_micro_version())
-      PI_CASE(WEBKIT_USER_AGENT_MAJOR_VERSION, WEBKIT_USER_AGENT_MAJOR_VERSION)
-      PI_CASE(WEBKIT_USER_AGENT_MINOR_VERSION, WEBKIT_USER_AGENT_MINOR_VERSION)
-
-      case L_TK_WINDOWS:
-        lua_newtable(L);
-        for (guint i = 0; i < globalconf.windows->len; i++) {
-            w = globalconf.windows->pdata[i];
-            luaH_object_push(L, w->ref);
-            lua_rawseti(L, -2, i+1);
-        }
-        return 1;
-
-      case L_TK_INSTALL_PATH:
-        lua_pushliteral(L, LUAKIT_INSTALL_PATH);
-        return 1;
-
-      case L_TK_VERSION:
-        lua_pushliteral(L, VERSION);
-        return 1;
-
-      default:
-        break;
-    }
-    return 0;
-}
-
-/* Newindex function for the luakit global table.
- * \param L The Lua VM state.
- * \return The number of elements pushed on stack.
- */
-static gint
-luaH_luakit_newindex(lua_State *L)
-{
-    if(luaH_usemetatable(L, 1, 2))
-        return 1;
-
-    size_t len;
-    const gchar *buf = luaL_checklstring(L, 2, &len);
-
-    debug("Luakit newindex %s", buf);
-
-    return 0;
-}
-
-/* Add a global signal.
- * Returns the number of elements pushed on stack.
- * \luastack
- * \lparam A string with the event name.
- * \lparam The function to call.
- */
-static gint
-luaH_luakit_add_signal(lua_State *L)
-{
-    const gchar *name = luaL_checkstring(L, 1);
-    luaH_checkfunction(L, 2);
-    signal_add(globalconf.signals, name, luaH_object_ref(L, 2));
-    return 0;
-}
-
-/* Remove a global signal.
- * \param L The Lua VM state.
- * \return The number of elements pushed on stack.
- * \luastack
- * \lparam A string with the event name.
- * \lparam The function to call.
- */
-static gint
-luaH_luakit_remove_signal(lua_State *L)
-{
-    const gchar *name = luaL_checkstring(L, 1);
-    luaH_checkfunction(L, 2);
-    gpointer func = (gpointer) lua_topointer(L, 2);
-    signal_remove(globalconf.signals, name, func);
-    luaH_object_unref(L, (gpointer) func);
-    return 0;
-}
-
-/* Emit a global signal.
- * \param L The Lua VM state.
- * \return The number of elements pushed on stack.
- * \luastack
- * \lparam A string with the event name.
- * \lparam The function to call.
- */
-static gint
-luaH_luakit_emit_signal(lua_State *L)
-{
-    return signal_object_emit(L, globalconf.signals, luaL_checkstring(L, 1),
-        lua_gettop(L) - 1, LUA_MULTRET);
-}
-
 static gint
 luaH_panic(lua_State *L)
 {
     warn("unprotected error in call to Lua API (%s)", lua_tostring(L, -1));
-    return 0;
-}
-
-static gint
-luaH_quit(lua_State *L)
-{
-    (void) L;
-    gtk_main_quit();
     return 0;
 }
 
@@ -722,7 +328,7 @@ luaH_dofunction_on_error(lua_State *L)
     /* duplicate string error */
     lua_pushvalue(L, -1);
     /* emit error signal */
-    signal_object_emit(L, globalconf.signals, "debug::error", 1, 0);
+    signal_object_emit(L, luakit_class.signals, "debug::error", 1, 0);
 
     if(!luaL_dostring(L, "return debug.traceback(\"error while running function\", 3)"))
     {
@@ -742,16 +348,6 @@ luaH_init(void)
 {
     lua_State *L;
 
-    static const struct luaL_reg luakit_lib[] = {
-        { "quit", luaH_quit },
-        { "add_signal", luaH_luakit_add_signal },
-        { "remove_signal", luaH_luakit_remove_signal },
-        { "emit_signal", luaH_luakit_emit_signal },
-        { "__index", luaH_luakit_index },
-        { "__newindex", luaH_luakit_newindex },
-        { NULL, NULL }
-    };
-
     /* Lua VM init */
     L = globalconf.L = luaL_newstate();
 
@@ -768,10 +364,15 @@ luaH_init(void)
     luaH_object_setup(L);
 
     /* Export luakit lib */
-    luaH_openlib(L, "luakit", luakit_lib, luakit_lib);
+    luakit_lib_setup(L);
 
     /* Export soup lib */
     soup_lib_setup(L);
+
+#if WITH_UNIQUE
+    /* Export unique lib */
+    unique_lib_setup(L);
+#endif
 
     /* Export widget */
     widget_class_setup(L);
@@ -917,7 +518,7 @@ gint
 luaH_class_index_miss_property(lua_State *L, lua_object_t *obj)
 {
     (void) obj;
-    signal_object_emit(L, globalconf.signals, "debug::index::miss", 2, 0);
+    signal_object_emit(L, luakit_class.signals, "debug::index::miss", 2, 0);
     return 0;
 }
 
@@ -925,7 +526,7 @@ gint
 luaH_class_newindex_miss_property(lua_State *L, lua_object_t *obj)
 {
     (void) obj;
-    signal_object_emit(L, globalconf.signals, "debug::newindex::miss", 3, 0);
+    signal_object_emit(L, luakit_class.signals, "debug::newindex::miss", 3, 0);
     return 0;
 }
 

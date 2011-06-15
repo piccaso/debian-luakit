@@ -1,7 +1,8 @@
 /*
- * luakit.h - luakit main functions
+ * clib/unique.c - libunique bindings for writing single instance
+ * applications
  *
- * Copyright (C) 2010 Mason Larobina <mason.larobina@gmail.com>
+ * Copyright © 2011 Mason Larobina <mason.larobina@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,23 +19,16 @@
  *
  */
 
-#ifndef LUAKIT_LUAKIT_H
-#define LUAKIT_LUAKIT_H
+#if WITH_UNIQUE
+
+#ifndef LUAKIT_CLIB_UNIQUE_H
+#define LUAKIT_CLIB_UNIQUE_H
 
 #include <lua.h>
-#include "common/signal.h"
 
-typedef struct {
-    /* Path to the config file */
-    gchar *confpath;
-    /* Lua VM state */
-    lua_State *L;
-    /* global signals */
-    signal_t *signals;
-} Luakit;
+void unique_lib_setup(lua_State*);
 
-/* Global config/state object */
-extern Luakit luakit;
+#endif /* #if LUAKIT_CLIB_UNIQUE_H */
+#endif /* #if WITH_UNIQUE */
 
-#endif
 // vim: ft=c:et:sw=4:ts=8:sts=4:tw=80

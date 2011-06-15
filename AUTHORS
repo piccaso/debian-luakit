@@ -2,6 +2,7 @@ Author of luakit:
   Mason Larobina    (mason-l)   <mason.larobina@gmail.com>  2010-2011
 
 Contributors to luakit (A to Z):
+  Alexis Daboville              <alexis.daboville@gmail.com> 2011
   André Aparício                <aparicio99@gmail.com>      2011
   Chris van Dijk    (quigybo)   <quigybo@hotmail.com>       2010
   Clint Adams       (Clint)     <schizo@debian.org>         2010
@@ -10,6 +11,7 @@ Contributors to luakit (A to Z):
   HarryD                        <harry@anapnea.net>         2010
   Henning Hasemann              <hhasemann@web.de>          2010
   Henrik Hallberg   (halhen)    <halhen@k2h.se>             2010
+  Javier Rojas      (jerojasro) <jerojasro@devnull.li>      2011
   Kumar Appaiah     (kmap)      <a.kumar@alumni.iitm.ac.in> 2010
   Matthew Wild      (MattJ)     <mwild1@gmail.com>          2010
   Michael Dietrich  (emdete)    <mdt@emdete.de>             2010
@@ -18,6 +20,7 @@ Contributors to luakit (A to Z):
   Pete Elmore                   <pete@debu.gs>              2010
   Piotr Husiatyński (husio)     <phusiatynski@gmail.com>    2010
   Richard Gay                   <richard.gay@t-online.de>   2010
+  Stefan Bolte      (portix)    <portix@gmx.net>            2011
   Stjujsckij Nickolaj           <sterkrig@home.no>          2011
   Vasuvi                        <vasuvi@inbox.com>          2010-2011
 
@@ -33,6 +36,8 @@ Author of the `lib/follow_selected.lua` javascript:
 Inherited authors from the awesomewm project:
   Julien Danjou                 <julien@danjou.info>        2007-2009
   Pierre Habouzit               <madcoder@debian.org>       2008
+  Michael Gehring               <mg@ebfe.org>               2008
+  Aldo Cortesi                  <aldo@nullcube.com>         2007-2008
 
 Inherited authors from the uzbl project:
   Dequis                        <dx@dxzone.com.ar>          2009

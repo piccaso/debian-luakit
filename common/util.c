@@ -1,9 +1,9 @@
 /*
  * util.c - useful functions
  *
- * Copyright (C) 2010 Mason Larobina <mason.larobina@gmail.com>
- * Copyright (C) 2007-2008 Julien Danjou <julien@danjou.info>
- * Copyright (C) 2006 Pierre Habouzit <madcoder@debian.org>
+ * Copyright © 2010 Mason Larobina <mason.larobina@gmail.com>
+ * Copyright © 2007-2008 Julien Danjou <julien@danjou.info>
+ * Copyright © 2006 Pierre Habouzit <madcoder@debian.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,16 +67,4 @@ gboolean
 file_exists(const gchar *filename)
 {
     return (access(filename, F_OK) == 0);
-}
-
-/* Execute a command and replace the current process. */
-void
-l_exec(const gchar *cmd)
-{
-    static const gchar *shell = NULL;
-
-    if(!shell && !(shell = g_getenv("SHELL")))
-        shell = "/bin/sh";
-
-    execl(shell, shell, "-c", cmd, NULL);
 }

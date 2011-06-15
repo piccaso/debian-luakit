@@ -227,6 +227,12 @@ window.init_funcs = {
             warn("E: window.lua: invalid window size: %q", size)
         end
     end,
+
+    set_window_icon = function (w)
+        local path = (luakit.dev_paths and os.exists("./extras/luakit.png")) or
+            os.exists("/usr/share/pixmaps/luakit.png")
+        if path then w.win.icon = path end
+    end,
 }
 
 -- Helper functions which operate on the window widgets or structure.
@@ -309,6 +315,26 @@ window.methods = {
         end
     end,
 
+    del_backward_char = function (w)
+        local i = w.ibar.input
+        local text = i.text
+        local pos = i.position
+
+        if pos > 1 then
+            i.text = string.sub(text, 0, pos - 1) .. string.sub(text, pos + 1)
+            i.position = pos - 1
+        end
+    end,
+
+    del_forward_char = function (w)
+        local i = w.ibar.input
+        local text = i.text
+        local pos = i.position
+
+        i.text = string.sub(text, 0, pos) .. string.sub(text, pos + 2)
+        i.position = pos
+    end,
+
     beg_line = function (w)
         local i = w.ibar.input
         i.position = 1
@@ -356,12 +382,6 @@ window.methods = {
                 i.position = pos - move
             end
         end
-    end,
-
-    -- Wrapper around luakit.set_selection that shows a notification
-    set_selection = function (w, text, selection)
-        luakit.set_selection(text, selection or "primary")
-        w:notify("Yanked: " .. text)
     end,
 
     -- Shows a notification until the next keypress of the user.
@@ -767,12 +787,10 @@ window.methods = {
     -- If argument is form-active or root-active, emits signal. Ignores all
     -- other signals.
     emit_form_root_active_signal = function (w, s)
-        if w:get_mode() ~= "passthrough" then
-            if s == "form-active" then
-                w:get_current():emit_signal("form-active")
-            elseif s == "root-active" then
-                w:get_current():emit_signal("root-active")
-            end
+        if s == "form-active" then
+            w:get_current():emit_signal("form-active")
+        elseif s == "root-active" then
+            w:get_current():emit_signal("root-active")
         end
     end,
 }

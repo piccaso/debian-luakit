@@ -1,8 +1,7 @@
 /*
  * luakit.c - luakit main functions
  *
- * Copyright (C) 2010 Mason Larobina <mason.larobina@gmail.com>
- * Copyright (C) 2009 Enno Boland <gottox@s01.de>
+ * Copyright © 2010-2011 Mason Larobina <mason.larobina@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +21,6 @@
 #include "globalconf.h"
 #include "common/util.h"
 #include "luah.h"
-#include "luakit.h"
 
 #include <gtk/gtk.h>
 #include <signal.h>
@@ -47,11 +45,7 @@ init_lua(gchar **uris)
     lua_State *L;
 
     /* init globalconf structs */
-    globalconf.signals = signal_new();
     globalconf.windows = g_ptr_array_new();
-
-    /* set numeric locale to C */
-    setlocale(LC_NUMERIC, "C");
 
     /* init lua */
     luaH_init();
@@ -150,6 +144,12 @@ main(gint argc, gchar *argv[]) {
     sigact.sa_flags = SA_NOCLDSTOP;
     if (sigaction(SIGCHLD, &sigact, NULL))
         fatal("Can't install SIGCHLD handler");
+
+    /* set numeric locale to C (required for compatibility with
+       LuaJIT and luakit scripts) */
+    gtk_set_locale();
+    gtk_disable_setlocale();
+    setlocale(LC_NUMERIC, "C");
 
     /* parse command line opts and get uris to load */
     uris = parseopts(argc, argv, &nonblock);

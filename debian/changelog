@@ -1,3 +1,11 @@
+luakit (2011.05.06+unique-1) unstable; urgency=low
+
+  * Add libunique support and corresponding build dependency.
+  * Fix popup inactivity problem.  closes: #622594.
+  * Bump to Standards-Version 3.9.2.
+
+ -- Clint Adams <clint@debian.org>  Wed, 15 Jun 2011 19:18:41 -0400
+
 luakit (2011.05.06-2) unstable; urgency=low
 
   * Add Debian menu entry from Jonathan Lane.  closes: #629103.

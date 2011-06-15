@@ -23,6 +23,7 @@
 #include "clib/luakit.h"
 #include "luah.h"
 
+#include <stdlib.h>
 #include <glib.h>
 #include <gtk/gtk.h>
 #include <sys/wait.h>
@@ -139,13 +140,9 @@ luaH_luakit_set_selection(lua_State *L)
 
     GtkClipboard *selection = gtk_clipboard_get(atom);
 
-    /* set selection text */
-    if (text) {
-        glong len = g_utf8_strlen (text, -1);
-        gtk_clipboard_set_text(selection, text, len);
-
-    /* clear selection text */
-    } else
+    if (text)
+        gtk_clipboard_set_text(selection, text, -1);
+    else
         gtk_clipboard_clear(selection);
 
     return 0;
@@ -473,6 +470,13 @@ spawn_error:
     return 0;
 }
 
+/** Get seconds from unix epoch with nanosecond precision (or nearest
+ * supported by the users system).
+ * \see http://www.kernel.org/doc/man-pages/online/pages/man2/clock_gettime.2.html
+ *
+ * \param L The Lua VM state.
+ * \return  The number of elements pushed on the stack (1).
+ */
 static gint
 luaH_luakit_time(lua_State *L)
 {
@@ -482,21 +486,28 @@ luaH_luakit_time(lua_State *L)
     return 1;
 }
 
+/** Wrapper around the execl POSIX function. The exec family of functions
+ * replaces the current process image with a new process image. This function
+ * will only return if there was an error with the execl call.
+ * \see http://en.wikipedia.org/wiki/Execl
+ *
+ * \param L The Lua VM state.
+ * \return  The number of elements pushed on the stack (0).
+ */
 static gint
 luaH_luakit_exec(lua_State *L)
 {
-    const gchar *cmd = luaL_checkstring(L, 1);
-    l_exec(cmd);
+    static const gchar *shell = NULL;
+    if (!shell && !(shell = g_getenv("SHELL")))
+        shell = "/bin/sh";
+    execl(shell, shell, "-c", luaL_checkstring(L, 1), NULL);
     return 0;
 }
 
-/* luakit global table.
- * \param L The Lua VM state.
- * \return The number of elements pushed on stack.
- * \luastack
- * \lfield font The default font.
- * \lfield font_height The default font height.
- * \lfield conffile The configuration file which has been loaded.
+/** luakit module index metamethod.
+ *
+ * \param  L The Lua VM state.
+ * \return   The number of elements pushed on stack.
  */
 static gint
 luaH_luakit_index(lua_State *L)
@@ -556,15 +567,31 @@ luaH_luakit_index(lua_State *L)
     return 0;
 }
 
-/* exit main gtk loop */
+/** Quit the main GTK loop.
+ * \see http://developer.gnome.org/gtk/stable/gtk-General.html#gtk-main-quit
+ *
+ * \param  L The Lua VM state.
+ * \return   The number of elements pushed on stack.
+ */
 static gint
 luaH_luakit_quit(lua_State *L)
 {
     (void) L;
-    gtk_main_quit();
+    if (gtk_main_level())
+        gtk_main_quit();
+    else
+        exit(EXIT_SUCCESS);
     return 0;
 }
 
+/** Calls the idle callback function. If the callback function returns false the
+ * idle source is removed, the Lua function is unreffed and will not be called
+ * again.
+ * \see luaH_luakit_idle_add
+ *
+ * \param func Lua callback function.
+ * \return TRUE to keep source alive, FALSE to remove.
+ */
 static gboolean
 idle_cb(gpointer func)
 {
@@ -578,7 +605,7 @@ idle_cb(gpointer func)
     luaH_object_push(L, func);
     if (lua_pcall(L, 0, 1, 0))
         /* remove idle source if error in callback */
-        warn("error in idle func: %s", lua_tostring(L, -1));
+        warn("error in idle callback: %s", lua_tostring(L, -1));
     else
         /* keep the source alive? */
         keep = lua_toboolean(L, -1);
@@ -593,6 +620,18 @@ idle_cb(gpointer func)
     return keep;
 }
 
+/** Adds a function to be called whenever there are no higher priority GTK
+ * events pending in the default main loop. If the function returns false it
+ * is automatically removed from the list of event sources and will not be
+ * called again.
+ * \see http://developer.gnome.org/glib/unstable/glib-The-Main-Event-Loop.html#g-idle-add
+ *
+ * \param  L The Lua VM state.
+ * \return   The number of elements pushed on the stack (0).
+ *
+ * \luastack
+ * \lparam func The callback function.
+ */
 static gint
 luaH_luakit_idle_add(lua_State *L)
 {
@@ -602,15 +641,30 @@ luaH_luakit_idle_add(lua_State *L)
     return 0;
 }
 
+/** Removes an idle callback by function.
+ * \see http://developer.gnome.org/glib/unstable/glib-The-Main-Event-Loop.html#g-idle-remove-by-data
+ *
+ * \param  L The Lua VM state.
+ * \return   The number of elements pushed on the stack (0).
+ *
+ * \luastack
+ * \lparam func The callback function.
+ * \lreturn true if callback removed.
+ */
 static gint
 luaH_luakit_idle_remove(lua_State *L)
 {
     luaH_checkfunction(L, 1);
-    gpointer func = luaH_object_ref(L, 1);
+    gpointer func = (gpointer)lua_topointer(L, 1);
     lua_pushboolean(L, g_idle_remove_by_data(func));
+    luaH_object_unref(L, func);
     return 1;
 }
 
+/** Setup luakit module.
+ *
+ * \param L The Lua VM state.
+ */
 void
 luakit_lib_setup(lua_State *L)
 {

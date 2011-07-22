@@ -30,14 +30,14 @@ gboolean
 key_press_cb(GtkWidget *win, GdkEventKey *ev, widget_t *w)
 {
     (void) win;
-    gint ret;
     lua_State *L = globalconf.L;
     luaH_object_push(L, w->ref);
     luaH_modifier_table_push(L, ev->state);
     luaH_keystr_push(L, ev->keyval);
-    ret = luaH_object_emit_signal(L, -3, "key-press", 2, 1);
+    gint ret = luaH_object_emit_signal(L, -3, "key-press", 2, 1);
+    gboolean catch = ret && lua_toboolean(L, -1) ? TRUE : FALSE;
     lua_pop(L, ret + 1);
-    return ret ? TRUE : FALSE;
+    return catch;
 }
 
 gboolean
@@ -62,14 +62,9 @@ button_cb(GtkWidget *win, GdkEventButton *ev, widget_t *w)
         break;
     }
 
-    /* catch button signal */
-    if (ret && lua_toboolean(L, -1)) {
-        lua_pop(L, ret + 1);
-        return TRUE;
-    }
+    gboolean catch = ret && lua_toboolean(L, -1) ? TRUE : FALSE;
     lua_pop(L, ret + 1);
-    /* propagate event further */
-    return FALSE;
+    return catch;
 }
 
 gboolean
@@ -170,12 +165,11 @@ luaH_widget_get_child(lua_State *L)
 {
     widget_t *w = luaH_checkwidget(L, 1);
     GtkWidget *widget = gtk_bin_get_child(GTK_BIN(w->widget));
-    widget_t *child = NULL;
 
     if (!widget)
         return 0;
 
-    child = g_object_get_data(G_OBJECT(child), "lua_widget");
+    widget_t *child = g_object_get_data(G_OBJECT(w->widget), "lua_widget");
     luaH_object_push(L, child->ref);
     return 1;
 }

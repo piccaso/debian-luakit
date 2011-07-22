@@ -1,3 +1,9 @@
+luakit (2011.07.22-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Clint Adams <clint@debian.org>  Fri, 22 Jul 2011 15:27:45 +0200
+
 luakit (2011.05.06+unique-1) unstable; urgency=low
 
   * Add libunique support and corresponding build dependency.

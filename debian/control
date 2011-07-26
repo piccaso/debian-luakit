@@ -3,7 +3,7 @@ Section: web
 Priority: optional
 Maintainer: Clint Adams <clint@debian.org>
 Standards-Version: 3.9.2
-Build-Depends: liblua5.1-0-dev, libgtk2.0-dev, libwebkit-dev, help2man, lua5.1, libsqlite3-dev, libunique-dev
+Build-Depends: liblua5.1-0-dev, libgtk2.0-dev, libwebkitgtk-dev, help2man, lua5.1, libsqlite3-dev, libunique-dev
 Homepage: http://www.luakit.org/
 Vcs-Git: git://git.debian.org/collab-maint/luakit.git
 Vcs-Browser: http://git.debian.org/?p=collab-maint/luakit.git;a=summary

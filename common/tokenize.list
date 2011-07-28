@@ -1,3 +1,4 @@
+add_id
 append
 atindex
 bg
@@ -12,6 +13,7 @@ count
 current
 current_size
 data_dir
+decorated
 DESKTOP
 destination
 destroy
@@ -32,6 +34,7 @@ filename
 focus
 font
 frames
+fullscreen
 get_alignment
 get_child
 get_children
@@ -53,18 +56,22 @@ homogeneous
 hovered_uri
 http_only
 icon
+id
 indexof
 insert
 install_path
 interval
+is_plugged
 label
 loading
 loading_chrome
 load_string
+maximize
 mime_type
 MUSIC
 name
 notebook
+nounique
 open
 pack_end
 pack_start
@@ -100,6 +107,7 @@ show_border
 show_frame
 show_scrollbars
 show_tabs
+socket
 spacing
 spawn
 spawn_sync
@@ -115,6 +123,8 @@ time
 title
 total_size
 type
+unfullscreen
+unmaximize
 uri
 uri_decode
 uri_encode

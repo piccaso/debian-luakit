@@ -1,3 +1,9 @@
+luakit (2011.07.22-r1-1) unstable; urgency=medium
+
+  * New upstream bugfix release.
+
+ -- Clint Adams <clint@debian.org>  Thu, 28 Jul 2011 09:39:24 +0200
+
 luakit (2011.07.22-2) unstable; urgency=low
 
   * Change WebKitGTK+ build dependency to libwebkitgtk-dev.  closes:

@@ -196,6 +196,11 @@ add_binds("normal", {
     buf("^T$",                      function (w, c) w:enter_cmd(":tabopen " .. (w.view.uri or "")) end),
     buf("^W$",                      function (w, c) w:enter_cmd(":winopen " .. (w.view.uri or "")) end),
     buf("^,g$",                     function (w, c) w:enter_cmd(":open google ") end),
+    buf("^,d$",                     function (w, c) w:enter_cmd(":open duckduckgo ") end),
+    buf("^,h$",                     function (w, c) w:enter_cmd(":open duckduckgo !hackage "
+) end),
+    buf("^,n$",                     function (w, c) w:enter_cmd(":open duckduckgo !netflix "
+) end),
 
     -- History
     key({},          "H",           function (w, m) w:back(m.count)    end),

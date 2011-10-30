@@ -1,3 +1,9 @@
+luakit (2011.07.22-r1+1015-1) unstable; urgency=low
+
+  * New upstream development snapshot.
+
+ -- Clint Adams <clint@debian.org>  Sun, 30 Oct 2011 19:14:53 -0400
+
 luakit (2011.07.22-r1-1) unstable; urgency=medium
 
   * New upstream bugfix release.

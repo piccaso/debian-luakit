@@ -54,7 +54,7 @@ soup.accept_policy = cookie_policy.always
 search_engines = {
     luakit      = "http://luakit.org/search/index/luakit?q=%s",
     google      = "http://google.com/search?q=%s",
-    duckduckgo  = "http://duckduckgo.com/?q=%s",
+    duckduckgo  = "http://duckduckgo.com/?q=%s&t=debian",
     wikipedia   = "http://en.wikipedia.org/wiki/Special:Search?search=%s",
     debbugs     = "http://bugs.debian.org/%s",
     imdb        = "http://imdb.com/find?s=all&q=%s",

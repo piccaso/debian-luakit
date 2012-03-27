@@ -41,6 +41,12 @@ typedef struct {
     gchar *hover;
     /** Scrollbar hide signal id */
     gulong hide_id;
+
+    /** Inspector properties */
+    WebKitWebInspector *inspector;
+    /** Inspector webview widget */
+    widget_t *iview;
+
 } webview_data_t;
 
 #define luaH_checkwvdata(L, udx) ((webview_data_t*)(luaH_checkwebview(L, udx)->data))
@@ -124,6 +130,7 @@ luaH_checkwebview(lua_State *L, gint udx)
 #include "widgets/webview/downloads.c"
 #include "widgets/webview/history.c"
 #include "widgets/webview/scroll.c"
+#include "widgets/webview/inspector.c"
 
 static gint
 luaH_webview_load_string(lua_State *L)
@@ -455,13 +462,13 @@ luaH_webview_ssl_trusted(lua_State *L)
 }
 
 static gint
-luaH_webview_index(lua_State *L, luakit_token_t token)
+luaH_webview_index(lua_State *L, widget_t *w, luakit_token_t token)
 {
-    webview_data_t *d = luaH_checkwvdata(L, 1);
+    webview_data_t *d = w->data;
     gint ret;
 
     switch(token) {
-      LUAKIT_WIDGET_INDEX_COMMON
+      LUAKIT_WIDGET_INDEX_COMMON(w)
 
       /* push property methods */
       PF_CASE(CLEAR_SEARCH,         luaH_webview_clear_search)
@@ -481,6 +488,9 @@ luaH_webview_index(lua_State *L, luakit_token_t token)
       PF_CASE(RELOAD_BYPASS_CACHE,  luaH_webview_reload_bypass_cache)
       PF_CASE(SSL_TRUSTED,          luaH_webview_ssl_trusted)
       PF_CASE(STOP,                 luaH_webview_stop)
+      /* push inspector webview methods */
+      PF_CASE(SHOW_INSPECTOR,       luaH_webview_show_inspector)
+      PF_CASE(CLOSE_INSPECTOR,      luaH_webview_close_inspector)
 
       /* push string properties */
       PS_CASE(HOVERED_URI,          d->hover)
@@ -497,6 +507,12 @@ luaH_webview_index(lua_State *L, luakit_token_t token)
 
       case L_TK_SCROLL:
         return luaH_webview_push_scroll_table(L);
+
+      case L_TK_INSPECTOR:
+        if (!d->iview)
+            return 0;
+        luaH_object_push(L, ((widget_t*)d->iview)->ref);
+        return 1;
 
       default:
         break;
@@ -537,18 +553,19 @@ parse_uri(const gchar *uri) {
 
 /* The __newindex method for the webview object */
 static gint
-luaH_webview_newindex(lua_State *L, luakit_token_t token)
+luaH_webview_newindex(lua_State *L, widget_t *w, luakit_token_t token)
 {
     size_t len;
-    webview_data_t *d = luaH_checkwvdata(L, 1);
+    webview_data_t *d = w->data;
     gchar *uri;
 
-    switch(token)
-    {
+    switch(token) {
+      LUAKIT_WIDGET_NEWINDEX_COMMON(w)
+
       case L_TK_URI:
         uri = parse_uri(luaL_checklstring(L, 3, &len));
         webkit_web_view_load_uri(d->view, uri);
-        update_uri(d->widget, uri);
+        update_uri(w, uri);
         g_free(uri);
         return 0;
 
@@ -777,6 +794,15 @@ static void
 webview_destructor(widget_t *w)
 {
     webview_data_t *d = w->data;
+
+    /* close inspector window */
+    if (d->iview) {
+        webkit_web_inspector_close(d->inspector);
+        /* need to make sure "close-inspector" gtk signal is emitted or
+           luakit segfaults */
+        while (g_main_context_iteration(NULL, FALSE));
+    }
+
     g_ptr_array_remove(globalconf.webviews, w);
     gtk_widget_destroy(GTK_WIDGET(d->view));
     gtk_widget_destroy(GTK_WIDGET(d->win));
@@ -808,11 +834,10 @@ widget_webview(widget_t *w, luakit_token_t UNUSED(token))
 
     /* create widgets */
     d->view = WEBKIT_WEB_VIEW(webkit_web_view_new());
+    d->inspector = webkit_web_view_get_inspector(d->view);
+
     d->win = GTK_SCROLLED_WINDOW(gtk_scrolled_window_new(NULL, NULL));
     w->widget = GTK_WIDGET(d->win);
-
-    /* set gobject property to give other widgets a pointer to our webview */
-    g_object_set_data(G_OBJECT(w->widget), "lua_widget", w);
 
     /* add webview to scrolled window */
     gtk_container_add(GTK_CONTAINER(d->win), GTK_WIDGET(d->view));
@@ -828,14 +853,13 @@ widget_webview(widget_t *w, luakit_token_t UNUSED(token))
 
     /* connect webview signals */
     g_object_connect(G_OBJECT(d->view),
+      LUAKIT_WIDGET_SIGNAL_COMMON(w)
       "signal::button-press-event",                   G_CALLBACK(webview_button_cb),            w,
       "signal::button-release-event",                 G_CALLBACK(webview_button_cb),            w,
       "signal::create-web-view",                      G_CALLBACK(create_web_view_cb),           w,
       "signal::document-load-finished",               G_CALLBACK(document_load_finished_cb),    w,
       "signal::download-requested",                   G_CALLBACK(download_request_cb),          w,
       "signal::expose-event",                         G_CALLBACK(expose_cb),                    w,
-      "signal::focus-in-event",                       G_CALLBACK(focus_cb),                     w,
-      "signal::focus-out-event",                      G_CALLBACK(focus_cb),                     w,
       "signal::hovering-over-link",                   G_CALLBACK(link_hover_cb),                w,
       "signal::key-press-event",                      G_CALLBACK(key_press_cb),                 w,
       "signal::mime-type-policy-decision-requested",  G_CALLBACK(mime_type_decision_cb),        w,
@@ -843,10 +867,17 @@ widget_webview(widget_t *w, luakit_token_t UNUSED(token))
       "signal::new-window-policy-decision-requested", G_CALLBACK(new_window_decision_cb),       w,
       "signal::notify",                               G_CALLBACK(notify_cb),                    w,
       "signal::notify::load-status",                  G_CALLBACK(notify_load_status_cb),        w,
-      "signal::parent-set",                           G_CALLBACK(parent_set_cb),                w,
       "signal::populate-popup",                       G_CALLBACK(populate_popup_cb),            w,
       "signal::resource-request-starting",            G_CALLBACK(resource_request_starting_cb), w,
       "signal::scroll-event",                         G_CALLBACK(scroll_event_cb),              w,
+      NULL);
+
+    g_object_connect(G_OBJECT(d->inspector),
+      "signal::inspect-web-view",                     G_CALLBACK(inspect_webview_cb),           w,
+      "signal::show-window",                          G_CALLBACK(inspector_show_window_cb),     w,
+      "signal::close-window",                         G_CALLBACK(inspector_close_window_cb),    w,
+      "signal::attach-window",                        G_CALLBACK(inspector_attach_window_cb),   w,
+      "signal::detach-window",                        G_CALLBACK(inspector_detach_window_cb),   w,
       NULL);
 
     /* show widgets */

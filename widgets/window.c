@@ -63,32 +63,17 @@ luaH_window_set_default_size(lua_State *L)
 }
 
 static gint
-luaH_window_show(lua_State *L)
+luaH_window_index(lua_State *L, widget_t *w, luakit_token_t token)
 {
-    widget_t *w = luaH_checkwidget(L, 1);
-    gtk_widget_show(w->widget);
-    gdk_window_set_events(gtk_widget_get_window(w->widget), GDK_ALL_EVENTS_MASK);
-    return 0;
-}
+    window_data_t *d = w->data;
 
-static gint
-luaH_window_index(lua_State *L, luakit_token_t token)
-{
-    window_data_t *d = luaH_checkwindata(L, 1);
-
-    switch(token)
-    {
-      LUAKIT_WIDGET_BIN_INDEX_COMMON(d->widget)
-      LUAKIT_WIDGET_CONTAINER_INDEX_COMMON(d->widget)
-
-      /* push widget class methods */
-      PF_CASE(DESTROY, luaH_widget_destroy)
-      PF_CASE(FOCUS,   luaH_widget_focus)
-      PF_CASE(HIDE,    luaH_widget_hide)
+    switch(token) {
+      LUAKIT_WIDGET_INDEX_COMMON(w)
+      LUAKIT_WIDGET_BIN_INDEX_COMMON(w)
+      LUAKIT_WIDGET_CONTAINER_INDEX_COMMON(w)
 
       /* push window class methods */
       PF_CASE(SET_DEFAULT_SIZE, luaH_window_set_default_size)
-      PF_CASE(SHOW,             luaH_window_show)
 
       /* push string properties */
       PS_CASE(TITLE, gtk_window_get_title(d->win))
@@ -113,13 +98,13 @@ luaH_window_index(lua_State *L, luakit_token_t token)
 }
 
 static gint
-luaH_window_newindex(lua_State *L, luakit_token_t token)
+luaH_window_newindex(lua_State *L, widget_t *w, luakit_token_t token)
 {
-    window_data_t *d = luaH_checkwindata(L, 1);
+    window_data_t *d = w->data;
 
-    switch(token)
-    {
-      LUAKIT_WIDGET_BIN_NEWINDEX_COMMON(d->widget)
+    switch(token) {
+      LUAKIT_WIDGET_NEWINDEX_COMMON(w)
+      LUAKIT_WIDGET_BIN_NEWINDEX_COMMON(w)
 
       case L_TK_DECORATED:
         gtk_window_set_decorated(d->win, luaH_checkboolean(L, 3));
@@ -205,7 +190,6 @@ widget_window(widget_t *w, luakit_token_t UNUSED(token))
     /* create and setup window widget */
     w->widget = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     d->win = GTK_WINDOW(w->widget);
-    g_object_set_data(G_OBJECT(w->widget), "lua_widget", (gpointer) w);
     gtk_window_set_wmclass(d->win, "luakit", "luakit");
     gtk_window_set_default_size(d->win, 800, 600);
     gtk_window_set_title(d->win, "luakit");
@@ -216,10 +200,9 @@ widget_window(widget_t *w, luakit_token_t UNUSED(token))
     gtk_window_set_geometry_hints(d->win, NULL, &hints, GDK_HINT_MIN_SIZE);
 
     g_object_connect(G_OBJECT(w->widget),
+      LUAKIT_WIDGET_SIGNAL_COMMON(w)
       "signal::add",                G_CALLBACK(add_cb),          w,
       "signal::destroy",            G_CALLBACK(destroy_cb),      w,
-      "signal::focus-in-event",     G_CALLBACK(focus_cb),        w,
-      "signal::focus-out-event",    G_CALLBACK(focus_cb),        w,
       "signal::key-press-event",    G_CALLBACK(key_press_cb),    w,
       "signal::remove",             G_CALLBACK(remove_cb),       w,
       "signal::window-state-event", G_CALLBACK(window_state_cb), w,

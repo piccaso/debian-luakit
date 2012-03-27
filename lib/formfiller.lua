@@ -503,7 +503,9 @@ add_binds("formfiller", lousy.util.table.join({
         local row = w.menu:get()
         local form = row.form
         w:set_mode()
-        apply_form(w, form)
+        for _, f in ipairs(w.view.frames) do
+            if apply_form(w, f, form) then return end
+        end
     end),
 }, menu_binds))
 
@@ -515,4 +517,3 @@ add_binds("normal", {
     buf("^zl$", function (w) load(w, true) end),
     buf("^zL$", function (w) load(w)       end),
 })
-

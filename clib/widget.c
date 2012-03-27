@@ -91,7 +91,7 @@ luaH_widget_index(lua_State *L)
 
     /* Then call special widget index */
     widget_t *widget = luaH_checkudata(L, 1, &widget_class);
-    return widget->index ? widget->index(L, token) : 0;
+    return widget->index ? widget->index(L, widget, token) : 0;
 }
 
 /** Generic widget newindex.
@@ -109,7 +109,7 @@ luaH_widget_newindex(lua_State *L)
 
     /* Then call special widget newindex */
     widget_t *widget = luaH_checkudata(L, 1, &widget_class);
-    return widget->newindex ? widget->newindex(L, token) : 0;
+    return widget->newindex ? widget->newindex(L, widget, token) : 0;
 }
 
 static gint
@@ -122,14 +122,18 @@ luaH_widget_set_type(lua_State *L, widget_t *w)
     luakit_token_t tok = l_tokenize(type);
     widget_info_t *winfo;
 
-    for (guint i = 0; i < LENGTH(widgets_list); i++)
-    {
+    for (guint i = 0; i < LENGTH(widgets_list); i++) {
         if (widgets_list[i].tok != tok)
             continue;
 
         winfo = &widgets_list[i];
         w->info = winfo;
         winfo->wc(w, tok);
+
+        /* store pointer to lua widget struct in gobject data */
+        g_object_set_data(G_OBJECT(w->widget),
+            GOBJECT_LUAKIT_WIDGET_DATA_KEY, (gpointer)w);
+
         luaH_object_emit_signal(L, -3, "init", 0, 0);
         return 0;
     }

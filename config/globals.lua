@@ -59,15 +59,16 @@ search_engines = {
     debbugs     = "http://bugs.debian.org/%s",
     imdb        = "http://imdb.com/find?s=all&q=%s",
     sourceforge = "http://sf.net/search/?words=%s",
+    netflix     = "http://dvd.netflix.com/Search?v1=%s",
 }
 
 -- Set google as fallback search engine
-search_engines.default = search_engines.google
+search_engines.default = search_engines.duckduckgo
 -- Use this instead to disable auto-searching
 --search_engines.default = "%s"
 
 -- Per-domain webview properties
--- See http://webkitgtk.org/reference/webkitgtk-WebKitWebSettings.html
+-- See http://webkitgtk.org/reference/WebKitWebSettings.html
 domain_props = { --[[
     ["all"] = {
         enable_scripts          = false,

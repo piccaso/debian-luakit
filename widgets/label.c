@@ -98,13 +98,10 @@ luaH_label_set_padding(lua_State *L, widget_t *w)
 }
 
 static gint
-luaH_label_index(lua_State *L, luakit_token_t token)
+luaH_label_index(lua_State *L, widget_t *w, luakit_token_t token)
 {
-    widget_t *w = luaH_checkwidget(L, 1);
-
-    switch(token)
-    {
-      LUAKIT_WIDGET_INDEX_COMMON
+    switch(token) {
+      LUAKIT_WIDGET_INDEX_COMMON(w)
 
       case L_TK_PADDING:
         return luaH_label_get_padding(L, w);
@@ -128,16 +125,16 @@ luaH_label_index(lua_State *L, luakit_token_t token)
 }
 
 static gint
-luaH_label_newindex(lua_State *L, luakit_token_t token)
+luaH_label_newindex(lua_State *L, widget_t *w, luakit_token_t token)
 {
     size_t len;
-    widget_t *w = luaH_checkwidget(L, 1);
     const gchar *tmp;
     GdkColor c;
     PangoFontDescription *font;
 
-    switch(token)
-    {
+    switch(token) {
+      LUAKIT_WIDGET_NEWINDEX_COMMON(w)
+
       case L_TK_PADDING:
         return luaH_label_set_padding(L, w);
 
@@ -194,7 +191,6 @@ widget_label(widget_t *w, luakit_token_t UNUSED(token))
 
     /* create gtk label widget as main widget */
     w->widget = gtk_label_new(NULL);
-    g_object_set_data(G_OBJECT(w->widget), "lua_widget", (gpointer) w);
 
     /* setup default settings */
     gtk_label_set_selectable(GTK_LABEL(w->widget), FALSE);
@@ -203,10 +199,8 @@ widget_label(widget_t *w, luakit_token_t UNUSED(token))
     gtk_misc_set_padding(GTK_MISC(w->widget), 2, 2);
 
     g_object_connect(G_OBJECT(w->widget),
-      "signal::focus-in-event",    G_CALLBACK(focus_cb),      w,
-      "signal::focus-out-event",   G_CALLBACK(focus_cb),      w,
+      LUAKIT_WIDGET_SIGNAL_COMMON(w)
       "signal::key-press-event",   G_CALLBACK(key_press_cb),  w,
-      "signal::parent-set",        G_CALLBACK(parent_set_cb), w,
       NULL);
 
     gtk_widget_show(w->widget);

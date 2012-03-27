@@ -199,7 +199,7 @@ add_binds("normal", {
     buf("^,d$",                     function (w, c) w:enter_cmd(":open duckduckgo ") end),
     buf("^,h$",                     function (w, c) w:enter_cmd(":open duckduckgo !hackage "
 ) end),
-    buf("^,n$",                     function (w, c) w:enter_cmd(":open duckduckgo !netflix "
+    buf("^,n$",                     function (w, c) w:enter_cmd(":open netflix "
 ) end),
 
     -- History

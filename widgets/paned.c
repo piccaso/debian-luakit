@@ -21,19 +21,10 @@
 #include "luah.h"
 #include "widgets/common.h"
 
-widget_t*
-luaH_checkpaned(lua_State *L, gint udx)
-{
-    widget_t *w = luaH_checkwidget(L, udx);
-    if ((w->info->tok != L_TK_VPANED) && (w->info->tok != L_TK_HPANED))
-        luaL_argerror(L, udx, "incorrect widget type (expected paned)");
-    return w;
-}
-
 static gint
 luaH_paned_pack(lua_State *L)
 {
-    widget_t *w = luaH_checkpaned(L, 1);
+    widget_t *w = luaH_checkwidget(L, 1);
     widget_t *child = luaH_checkwidget(L, 2);
     gint top = lua_gettop(L);
     gboolean resize = TRUE, shrink = TRUE;
@@ -70,19 +61,16 @@ luaH_paned_get_child(lua_State *L, widget_t *w, gint n)
     if (!widget)
         return 0;
 
-    widget_t *child = g_object_get_data(G_OBJECT(widget), "lua_widget");
+    widget_t *child = GOBJECT_TO_LUAKIT_WIDGET(widget);
     luaH_object_push(L, child->ref);
     return 1;
 }
 
 static gint
-luaH_paned_index(lua_State *L, luakit_token_t token)
+luaH_paned_index(lua_State *L, widget_t *w, luakit_token_t token)
 {
-    widget_t *w = luaH_checkpaned(L, 1);
-
-    switch(token)
-    {
-      LUAKIT_WIDGET_INDEX_COMMON
+    switch(token) {
+      LUAKIT_WIDGET_INDEX_COMMON(w)
       LUAKIT_WIDGET_CONTAINER_INDEX_COMMON(w)
 
       /* push paned widget methods */
@@ -106,16 +94,28 @@ luaH_paned_index(lua_State *L, luakit_token_t token)
     return 0;
 }
 
+static gint
+luaH_paned_newindex(lua_State *L, widget_t *w, luakit_token_t token)
+{
+    switch(token) {
+      LUAKIT_WIDGET_NEWINDEX_COMMON(w)
+
+      default:
+        break;
+    }
+    return 0;
+}
+
 widget_t *
 widget_paned(widget_t *w, luakit_token_t token)
 {
     w->index = luaH_paned_index;
+    w->newindex = luaH_paned_newindex;
     w->destructor = widget_destructor;
 
     w->widget = (token == L_TK_VPANED) ? gtk_vpaned_new() :
             gtk_hpaned_new();
 
-    g_object_set_data(G_OBJECT(w->widget), "lua_widget", (gpointer) w);
     g_object_connect(G_OBJECT(w->widget),
       "signal::add",        G_CALLBACK(add_cb),        w,
       "signal::parent-set", G_CALLBACK(parent_set_cb), w,

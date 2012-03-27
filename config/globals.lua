@@ -58,6 +58,7 @@ search_engines = {
     debbugs     = "http://bugs.debian.org/%s",
     imdb        = "http://imdb.com/find?s=all&q=%s",
     sourceforge = "http://sf.net/search/?words=%s",
+    netflix     = "http://dvd.netflix.com/Search?v1=%s",
 }
 
 -- Set google as fallback search engine

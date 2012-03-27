@@ -1,3 +1,11 @@
+luakit (2012.03.25-1) unstable; urgency=low
+
+  * New upstream version.
+  * Make DuckDuckGo default search engine.
+  * Add Debian tag to DDG query string.
+
+ -- Clint Adams <clint@debian.org>  Tue, 27 Mar 2012 16:08:46 -0400
+
 luakit (2011.07.22-r1+1015-1) unstable; urgency=low
 
   * New upstream development snapshot.

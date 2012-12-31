@@ -1,9 +1,10 @@
 Author of luakit:
-  Mason Larobina    (mason-l)   <mason.larobina@gmail.com>  2010-2011
+  Mason Larobina    (mason-l)   <mason.larobina@gmail.com>  2010-2012
 
 Contributors to luakit (A to Z):
   Alexis Daboville              <alexis.daboville@gmail.com> 2011
   André Aparício                <aparicio99@gmail.com>      2011
+  Ben Armston                   <ben.armston@googlemail.com> 2012
   Chris van Dijk    (quigybo)   <quigybo@hotmail.com>       2010
   Clint Adams       (Clint)     <schizo@debian.org>         2010
   Constantin Schomburg (xconstruct) <me@xconstruct.net>     2011
@@ -13,7 +14,9 @@ Contributors to luakit (A to Z):
   Henning Hasemann              <hhasemann@web.de>          2010
   Henrik Hallberg   (halhen)    <halhen@k2h.se>             2010
   Javier Rojas      (jerojasro) <jerojasro@devnull.li>      2011
+  Jonas Höglund     (FireFly)   <firefly@firefly.nu>        2012
   Kumar Appaiah     (kmap)      <a.kumar@alumni.iitm.ac.in> 2010
+  LokiChaos                     <loki.chaos@gmail.com>      2012
   Matthew Wild      (MattJ)     <mwild1@gmail.com>          2010
   Michael Dietrich  (emdete)    <mdt@emdete.de>             2010
   Pawel Tomak       (grodzik)   <pawel.tomak@gmail.com>     2010
@@ -25,6 +28,9 @@ Contributors to luakit (A to Z):
   Stefan Bolte      (portix)    <portix@gmx.net>            2011
   Stjujsckij Nickolaj           <sterkrig@home.no>          2011
   Vasuvi                        <vasuvi@inbox.com>          2010-2011
+
+Author of `lib/markdown.lua`:
+  Niklas Frykholm               <niklas@frykholm.se>        2008
 
 Author of the JavaScript greasemonkey methods in `lib/userscripts.lua`:
   Jim Tuttle                                                2009

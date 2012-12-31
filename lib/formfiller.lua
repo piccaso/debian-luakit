@@ -88,7 +88,7 @@ local file = capi.luakit.data_dir .. "/forms.lua"
 
 -- The global formfiller JS code
 local formfiller_js = [=[
-    formfiller = {
+    var formfiller = {
         toA: function (arr) {
             var ret = [];
             for (var i = 0; i < arr.length; ++i) {
@@ -137,7 +137,7 @@ local formfiller_js = [=[
                 return elements;
             };
         },
-    }
+    };
 ]=]
 
 -- Invokes an AttributeMatcher for the given tag and attributes with the
@@ -170,8 +170,7 @@ local function match(w, tag, attributes, data, parents)
         tag = tag,
         parents = parents and string.format("formfiller.%s", parents) or "null",
     })
-    local ret = w:eval_js(js, "(formfiller.lua)")
-    return (ret == "true")
+    return w.view:eval_js(js)
 end
 
 -- The function environment for the formfiller script
@@ -259,7 +258,7 @@ end
 -- @param w The window for which to add an entry.
 function add(w)
     -- load JS prerequisites
-    w:eval_js(formfiller_js, "(formfiller.lua)")
+    w.view:eval_js(formfiller_js)
     local js = [=[
         var addAttr = function (str, elem, attr, indent, tail) {
             if (typeof(elem[attr]) == "string" && elem[attr] !== "") {
@@ -300,8 +299,11 @@ function add(w)
         str += "}\n\n";
         rendered_something ? str : false;
     ]=]
-    local ret = w:eval_js(js, "(formfiller.lua)")
-    if ret == "false" then return w:error("no forms with inputs found") end
+
+    local ret = w.view:eval_js(js)
+    if not ret then
+        return w:error("no forms with inputs found")
+    end
     local f = io.open(file, "a")
     f:write(ret)
     f:close()
@@ -322,8 +324,9 @@ local function filter_rules(w, rules)
         local js = string.gsub(js_template, "{(%w+)}", {
             pattern = string.format("%q", rule.pattern)
         })
-        local ret = w:eval_js(js, "(formfiller.lua)")
-        if ret == "true" then table.insert(filtered, rule) end
+        if w.view:eval_js(js) then
+            table.insert(filtered, rule)
+        end
     end
     return filtered
 end
@@ -382,7 +385,7 @@ local function fill_input(w, val)
     local js = string.gsub(js_template, "{(%w+)}", {
         str = string.format("%q", tostring(val))
     })
-    w:eval_js(js, "(formfiller.lua)")
+    w.view:eval_js(js)
 end
 
 -- Focuses the currently selected input.
@@ -396,8 +399,9 @@ local function focus_input(w)
             "false";
         }
     ]=]
-    local ret = w:eval_js(js, "(formfiller.lua)")
-    if ret == "true" then w:set_mode("insert") end
+    if w.view:eval_js(js) then
+        w:set_mode("insert")
+    end
 end
 
 -- Selects all text in the currently selected input.
@@ -408,7 +412,7 @@ local function select_input(w)
             formfiller.inputs[0].select();
         }
     ]=]
-    local ret = w:eval_js(js, "(formfiller.lua)")
+    w.view:eval_js(js)
 end
 
 -- Submits the currently selected form by clicking the nth button or
@@ -430,7 +434,7 @@ local function submit_form(w, n)
             }
         }
     ]=], n)
-    w:eval_js(js, "(formfiller.lua)")
+    w.view:eval_js(js)
 end
 
 -- Applies all values to all matching inputs in a form and optionally focuses and selects
@@ -465,7 +469,7 @@ function load(w, fast)
     -- reload the DSL
     init(w)
     -- load JS prerequisites
-    w:eval_js(formfiller_js, "(formfiller.lua)")
+    w.view:eval_js(formfiller_js)
     -- filter out all rules that do not match the current URI
     local rules = filter_rules(w, w.formfiller_state.rules)
     for _, rule in ipairs(rules) do
@@ -499,21 +503,27 @@ new_mode("formfiller", {
 local key = lousy.bind.key
 add_binds("formfiller", lousy.util.table.join({
     -- use profile
-    key({}, "Return", function (w)
-        local row = w.menu:get()
-        local form = row.form
-        w:set_mode()
-        for _, f in ipairs(w.view.frames) do
-            if apply_form(w, f, form) then return end
-        end
-    end),
+    key({}, "Return", "Select formfiller profile.",
+        function (w)
+            local row = w.menu:get()
+            local form = row.form
+            w:set_mode()
+            if apply_form(w, form) then return end
+        end),
 }, menu_binds))
 
 -- Setup formfiller binds
 local buf = lousy.bind.buf
 add_binds("normal", {
-    buf("^za$", function (w) add(w)        end),
-    buf("^ze$", function (w) edit()        end),
-    buf("^zl$", function (w) load(w, true) end),
-    buf("^zL$", function (w) load(w)       end),
+    buf("^za$", "Add formfiller form.",
+        function (w) add(w) end),
+
+    buf("^ze$", "Edit formfiller forms for current domain.",
+        function (w) edit() end),
+
+    buf("^zl$", "Load formfiller form (use first profile).",
+        function (w) load(w, true) end),
+
+    buf("^zL$", "Load formfiller form.",
+        function (w) load(w) end),
 })

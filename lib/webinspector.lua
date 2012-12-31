@@ -42,7 +42,7 @@ webview.init_funcs.inspector_setup = function (view, w)
     view:add_signal("show-inspector", function ()
         switch_inspector(w, view)
         -- We start in paned view
-        view.inspector:eval_js("WebInspector._toggleAttach();", "(webinspector.lua)")
+        view.inspector:eval_js("WebInspector.attached = true;")
     end)
 
     view:add_signal("close-inspector", function (_, iview)
@@ -70,7 +70,7 @@ end
 
 local cmd = lousy.bind.cmd
 add_cmds({
-    cmd("in[spect]", function (w, _, o)
+    cmd("in[spect]", "open DOM inspector", function (w, _, o)
         local v = w.view
         if o.bang then -- "inspect!" toggles inspector
             (v.inspector and v.close_inspector or v.show_inspector)(v)

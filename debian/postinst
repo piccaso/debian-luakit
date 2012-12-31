@@ -12,4 +12,6 @@ case "$1" in
   ;;
 esac
 
+if [ -x /usr/bin/update-menus ] ; then update-menus ; fi
+
 exit 0

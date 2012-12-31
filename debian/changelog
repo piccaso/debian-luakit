@@ -1,3 +1,16 @@
+luakit (2012.09.13-r1-1) unstable; urgency=low
+
+  * New upstream version.
+  * Bump to Standards-Version 3.9.4.
+  * Add build-arch and build-indep targets.
+  * Use dpkg-buildflags.
+  * Change Homepage to http://luakit.org/ .  closes: #695288.
+  * Call update-menus in postinst.
+  * Add watch file.
+  * Update descriptions.
+
+ -- Clint Adams <clint@debian.org>  Sun, 30 Dec 2012 19:34:33 -0500
+
 luakit (2012.03.25-1) unstable; urgency=low
 
   * New upstream version.

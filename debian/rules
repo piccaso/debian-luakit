@@ -9,15 +9,19 @@ package=luakit
 
 DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
 
-build:
+build: build-indep build-arch
+
+build-indep:
+
+build-arch:
 	$(checkdir)
 
 	$(MAKE) PREFIX=/usr DEVELOPMENT_PATHS=0
-	touch build
+	touch build-arch
 
 clean:
 	$(checkdir)
-	-rm -f build
+	-rm -f build build-arch
 	$(MAKE) clean
 	-rm -f `find . -name "*~"` \
 	        debian/files* core debian/*ubstvars
@@ -78,4 +82,4 @@ checkroot:
 	$(checkdir)
 	test root = "`whoami`"
 
-.PHONY: binary binary-arch binary-indep clean checkroot prebuild install
+.PHONY: build build-indep binary binary-arch binary-indep clean checkroot prebuild install

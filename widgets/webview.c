@@ -232,9 +232,12 @@ resource_request_starting_cb(WebKitWebView* UNUSED(v),
     lua_pushstring(L, uri);
     gint ret = luaH_object_emit_signal(L, -2, "resource-request-starting", 1, 1);
 
-    if (ret && !lua_toboolean(L, -1))
-        /* User responded with false, ignore request */
-        webkit_network_request_set_uri(r, "about:blank");
+    if (ret) {
+        if (lua_isstring(L, -1)) /* redirect */
+            webkit_network_request_set_uri(r, lua_tostring(L, -1));
+        else if (!lua_toboolean(L, -1)) /* ignore */
+            webkit_network_request_set_uri(r, "about:blank");
+    }
 
     lua_pop(L, ret + 1);
     return TRUE;
@@ -368,15 +371,14 @@ navigation_decision_cb(WebKitWebView* UNUSED(v), WebKitWebFrame* UNUSED(f),
     luaH_object_push(L, w->ref);
     lua_pushstring(L, uri);
     gint ret = luaH_object_emit_signal(L, -2, "navigation-request", 1, 1);
+    gboolean ignore = ret && !lua_toboolean(L, top+1) ? TRUE : FALSE;
 
-    if (ret && !lua_toboolean(L, -1))
+    if (ignore)
         /* User responded with false, do not continue navigation request */
         webkit_web_policy_decision_ignore(p);
-    else
-        webkit_web_policy_decision_use(p);
 
     lua_settop(L, top);
-    return TRUE;
+    return ignore;
 }
 
 static gint
@@ -684,7 +686,7 @@ menu_item_cb(GtkMenuItem *menuitem, widget_t *w)
 }
 
 static void
-hide_popup_cb() {
+hide_popup_cb(void) {
     GSList *iter;
     lua_State *L = globalconf.L;
 
@@ -812,6 +814,20 @@ webview_destructor(widget_t *w)
     g_slice_free(webview_data_t, d);
 }
 
+void
+size_request_cb(GtkWidget *UNUSED(widget), GtkRequisition *r, widget_t *w)
+{
+    gtk_widget_set_size_request(GTK_WIDGET(w->widget), r->width, r->height);
+}
+
+/* redirect focus on scrolled window to child webview widget */
+void
+swin_focus_cb(GtkWidget *UNUSED(wi), GdkEventFocus *UNUSED(e), widget_t *w)
+{
+    webview_data_t *d = w->data;
+    gtk_widget_grab_focus(GTK_WIDGET(d->view));
+}
+
 widget_t *
 widget_webview(widget_t *w, luakit_token_t UNUSED(token))
 {
@@ -870,6 +886,12 @@ widget_webview(widget_t *w, luakit_token_t UNUSED(token))
       "signal::populate-popup",                       G_CALLBACK(populate_popup_cb),            w,
       "signal::resource-request-starting",            G_CALLBACK(resource_request_starting_cb), w,
       "signal::scroll-event",                         G_CALLBACK(scroll_event_cb),              w,
+      "signal::size-request",                         G_CALLBACK(size_request_cb),              w,
+      NULL);
+
+    g_object_connect(G_OBJECT(d->win),
+      "signal::parent-set",                           G_CALLBACK(parent_set_cb),                w,
+      "signal::focus-in-event",                       G_CALLBACK(swin_focus_cb),                w,
       NULL);
 
     g_object_connect(G_OBJECT(d->inspector),

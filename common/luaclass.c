@@ -153,10 +153,14 @@ luaH_class_setup(lua_State *L, lua_class_t *class,
     lua_setfield(L, -2, "__index"); /* metatable.__index = metatable      1 */
 
     luaL_register(L, NULL, meta);                                      /* 1 */
-    luaL_register(L, name, methods);                                   /* 2 */
-    lua_pushvalue(L, -1);           /* dup self as metatable              3 */
-    lua_setmetatable(L, -2);        /* set self as metatable              2 */
-    lua_pop(L, 2);
+
+    if (methods) {
+        luaL_register(L, name, methods);                               /* 2 */
+        lua_pushvalue(L, -1);           /* dup self as metatable          3 */
+        lua_setmetatable(L, -2);        /* set self as metatable          2 */
+        lua_pop(L, 2);
+    } else
+        lua_pop(L, 1);
 
     class->allocator = allocator;
     class->name = name;
@@ -176,6 +180,15 @@ void
 luaH_class_add_signal(lua_State *L, lua_class_t *lua_class,
         const gchar *name, gint ud) {
     luaH_checkfunction(L, ud);
+
+    if (globalconf.verbose) {
+        gchar *origin = luaH_callerinfo(L);
+        debug("add " ANSI_COLOR_BLUE "\"%s\"" ANSI_COLOR_RESET
+                " on %p from " ANSI_COLOR_GREEN "%s" ANSI_COLOR_RESET,
+                name, lua_class, origin);
+        g_free(origin);
+    }
+
     signal_add(lua_class->signals, name, luaH_object_ref(L, ud));
 }
 

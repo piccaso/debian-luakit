@@ -1,285 +1,137 @@
-----------------------------------------------------------------
--- Bookmark managing                                          --
--- Copyright © 2010 Henning Hasemann <hhasemann@web.de>       --
--- Copyright © 2010 Mason Larobina <mason.larobina@gmail.com> --
-----------------------------------------------------------------
+-----------------------------------------------------------
+-- Simple sqlite3 bookmarks                              --
+-- © 2010-2012 Mason Larobina <mason.larobina@gmail.com> --
+-----------------------------------------------------------
 
--- Grab environment we need
-local table = table
+local lousy = require "lousy"
 local string = string
-local io = io
-local os = os
-local unpack = unpack
+local table = table
 local type = type
-local pairs = pairs
-local ipairs = ipairs
 local assert = assert
-local capi = { luakit = luakit }
-local chrome = require("chrome")
-local lousy = require("lousy")
-local util = lousy.util
-local add_binds, add_cmds = add_binds, add_cmds
-local tonumber = tonumber
-local tostring = tostring
-local window = window
+local ipairs = ipairs
+local os = os
+local error = error
+local capi = { luakit = luakit, sqlite3 = sqlite3 }
+local keys = lousy.util.table.keys
 
--- Bookmark functions that operate on a flatfile and output to html
 module("bookmarks")
 
--- Loaded bookmarks
-local data = {}
+lousy.signal.setup(_M, true)
 
--- Some default settings
-bookmarks_file = capi.luakit.data_dir .. '/bookmarks'
+-- Path to users bookmarks database
+db_path = capi.luakit.data_dir .. "/bookmarks.db"
 
--- Templates
-block_template = [==[<div class="tag"><h1>{tag}</h1><ul>{links}</ul></div>]==]
-link_template  = [==[<li><a href="{uri}">{name}</a> <span class="id">{id}</span></li>]==]
+function init()
+    db = capi.sqlite3{ filename = _M.db_path }
+    db:exec [[
+        PRAGMA synchronous = OFF;
+        PRAGMA secure_delete = 1;
 
-html_template = [==[
-<html>
-<head>
-    <title>{title}</title>
-    <style type="text/css">
-    {style}
-    </style>
-</head>
-<body>
-{tags}
-</body>
-</html>
-]==]
-
--- Template subs
-html_page_title = "Bookmarks"
-
-html_style = [===[
-    body {
-        font-family: monospace;
-        margin: 25px;
-        line-height: 1.5em;
-        font-size: 12pt;
-    }
-    div.tag {
-        width: 100%;
-        padding: 0px;
-        margin: 0 0 25px 0;
-        clear: both;
-    }
-    span.id {
-        font-size: small;
-        color: #333333;
-        float: right;
-    }
-    .tag ul {
-        padding: 0;
-        margin: 0;
-        list-style-type: none;
-    }
-    .tag h1 {
-        font-size: 12pt;
-        font-weight: bold;
-        font-style: normal;
-        font-variant: small-caps;
-        padding: 0 0 5px 0;
-        margin: 0;
-        color: #333333;
-        border-bottom: 1px solid #aaa;
-    }
-    .tag a:link {
-        color: #0077bb;
-        text-decoration: none;
-    }
-    .tag a:hover {
-        color: #0077bb;
-        text-decoration: underline;
-    }
-]===]
-
---- Clear in-memory bookmarks
-function clear()
-    data = {}
+        CREATE TABLE IF NOT EXISTS bookmarks (
+            id INTEGER PRIMARY KEY,
+            uri TEXT NOT NULL,
+            title TEXT NOT NULL,
+            desc TEXT NOT NULL,
+            tags TEXT NOT NULL,
+            created INTEGER,
+            modified INTEGER
+        );
+    ]]
 end
 
---- Save the in-memory bookmarks to flatfile.
--- @param file The destination file or the default location if nil.
-function save(file)
-    if not file then file = bookmarks_file end
+capi.luakit.idle_add(init)
 
-    local lines = {}
-    for _, bm in pairs(data) do
-        local subs = { uri = bm.uri, tags = table.concat(bm.tags or {}, " "), }
-        local line = string.gsub("{uri}\t{tags}", "{(%w+)}", subs)
-        table.insert(lines, line)
-    end
-
-    -- Write table to disk
-    local fh = io.open(file, "w")
-    fh:write(table.concat(lines, "\n"))
-    io.close(fh)
+-- Validate tag name
+local function valid_tag_name(name)
+    return not not string.match(name, "^%w[%w-]*$")
 end
 
---- Add a bookmark to the in-memory bookmarks table
-function add(uri, tags, replace, save_bookmarks)
-    assert(uri ~= nil, "bookmark add: no URI given")
-    if not tags then tags = {} end
-
-    -- Create tags table from string
-    if type(tags) == "string" then tags = util.string.split(tags) end
-
-    if not replace and data[uri] then
-        local bm = data[uri]
-        -- Merge tags
-        for _, tag in ipairs(tags) do
-            if not util.table.hasitem(bm, tag) then table.insert(bm, tag) end
-        end
-    else
-        -- Insert new bookmark
-        data[uri] = { uri = uri, tags = tags }
-    end
-
-    -- Save by default
-    if save_bookmarks ~= false then save() end
+function get(id)
+    assert(type(id) == "number", "invalid bookmark id (number expected)")
+    local rows = db:exec([[ SELECT * FROM bookmarks WHERE id = ? ]], { id })
+    return rows[1]
 end
 
--- Remove a bookmark from the in-memory bookmarks table by index
--- @param index Index of the bookmark to delete
--- @param save_bookmarks Option whether to save the bookmarks to file or not
-function del(index, save_bookmarks)
-    assert(index ~= nil, "bookdel: Index has to be a number")
-    assert(index > 0, "bookdel: Index has to be > 0")
+function remove(id)
+    assert(type(id) == "number", "invalid bookmark id (number expected)")
 
-    -- Remove entry from data table
-    local id = 0
-    for _, bm in pairs(data) do
-        id = id + 1
-        if id == index then
-            data[_] = nil
-            break
-        end
+    _M.emit_signal("remove", id)
+
+    db:exec([[ DELETE FROM bookmarks WHERE id = ? ]], { id })
+end
+
+local function parse_tags(tags)
+    local ret = {}
+    local remains = string.gsub(tags, "%w[%w-]*",
+        function (tag) ret[tag] = true return "" end)
+    return ret, remains
+end
+
+local function update_tags(b, tags)
+    table.sort(tags)
+    tags = table.concat(tags, " ")
+    db:exec([[ UPDATE bookmarks SET tags = ?, modified = ? WHERE id = ? ]],
+        { tags, os.time(), b.id })
+    _M.emit_signal("update", id)
+end
+
+function tag(id, new_tags, replace)
+    local b = assert(get(id), "bookmark not found")
+
+    if type(new_tags) == "table" then
+        new_tags = table.concat(new_tags, " ")
     end
 
-    -- Save by default
-    if save_bookmarks ~= false then save() end
+    local all_tags = string.format("%s %s", new_tags,
+        (not replace and b.tags) or "")
 
-    -- Refresh open bookmarks views
-    for _, w in pairs(window.bywidget) do
-        for _, v in ipairs(w.tabs.children) do
-            if string.match(v.uri, "^luakit://bookmarks/?") then
-                v:reload()
-            end
-        end
+    local tags, remains = parse_tags(all_tags)
+
+    if string.find(remains, "[^%s,]") then
+        error("invalid tags: " ..  remains)
+    end
+
+    update_tags(b, keys(tags))
+end
+
+function untag(id, name)
+    local b = assert(get(id), "bookmark not found")
+    if b.tags then
+        local tags = parse_tags(b.tags)
+        tags[name] = nil
+        update_tags(b, keys(tags))
     end
 end
 
---- Load bookmarks from a flatfile to memory.
--- @param file The bookmarks file or the default bookmarks location if nil.
--- @param clear_first Should the bookmarks in memory be dumped before loading.
-function load(file, clear_first)
-    if clear_first then clear() end
+-- Add new bookmark
+function add(uri, opts)
+    opts = opts or {}
 
-    -- Find a bookmarks file
-    if not file then file = bookmarks_file end
-    if not os.exists(file) then return end
+    assert(type(uri) == "string" and #uri > 0, "invalid bookmark uri")
+    assert(opts.title == nil or type(opts.title) == "string",
+        "invalid bookmark title")
+    assert(opts.desc == nil or type(opts.desc) == "string",
+        "invalid bookmark description")
+    assert(opts.created == nil or type(opts.created) == "number",
+        "invalid creation time")
 
-    -- Read lines into bookmarks data table
-    for line in io.lines(file or bookmarks_file) do
-        local uri, tags = unpack(util.string.split(line, "\t"))
-        if uri ~= "" then add(uri, tags, false, false) end
+    -- Default to http:// scheme if none provided
+    if not string.match(uri, "^%w+://") then
+        uri = "http://" .. uri
     end
+
+    db:exec("INSERT INTO bookmarks VALUES (NULL, ?, ?, ?, ?, ?, ?)", {
+        uri, opts.title or "", opts.desc or "", "", opts.created or os.time(),
+        os.time() -- modified time (now)
+    })
+
+    local id = db:exec("SELECT last_insert_rowid() AS id")[1].id
+    _M.emit_signal("add", id)
+
+    -- Add bookmark tags
+    if opts.tags then tag(id, opts.tags) end
+
+    return id
 end
-
---- Shows the chrome page in the given view.
-chrome.add("bookmarks/", function (view, uri)
-    -- Get a list of all the unique tags in all the bookmarks and build a
-    -- relation between a given tag and a list of bookmarks with that tag.
-    local tags = {}
-    local id = 0
-    for _, bm in pairs(data) do
-        id = id + 1
-        bm['id'] = id
-        for _, t in ipairs(bm.tags) do
-            if not tags[t] then tags[t] = {} end
-            tags[t][bm.uri] = bm
-        end
-    end
-
-    -- For each tag build
-    local lines = {}
-    for _, tag in ipairs(util.table.keys(tags)) do
-        local links = {}
-        for _, uri in ipairs(util.table.keys(tags[tag])) do
-            local bm = tags[tag][uri]
-            local link_subs = {
-                uri = bm.uri,
-                id = bm.id,
-                name = util.escape(bm.uri),
-            }
-            local link = string.gsub(link_template, "{(%w+)}", link_subs)
-            table.insert(links, link)
-        end
-
-        local block_subs = {
-            tag   = tag,
-            links = table.concat(links, "\n")
-        }
-        local block = string.gsub(block_template, "{(%w+)}", block_subs)
-        table.insert(lines, block)
-    end
-
-    local html_subs = {
-        tags  = table.concat(lines, "\n\n"),
-        title = html_page_title,
-        style = html_style
-    }
-
-    local html = string.gsub(html_template, "{(%w+)}", html_subs)
-    view:load_string(html, tostring(uri))
-end)
-
--- URI of the chrome page
-chrome_page    = "luakit://bookmarks/"
-
--- Add normal binds.
-local key, buf = lousy.bind.key, lousy.bind.buf
-add_binds("normal", {
-    key({}, "B", function (w)
-        w:enter_cmd(":bookmark " .. (w.view.uri or "http://") .. " ")
-    end),
-
-    buf("^gb$", function (w)
-        w:navigate(chrome_page)
-    end),
-
-    buf("^gB$", function (w, b, m)
-        for i=1, m.count do
-            w:new_tab(chrome_page)
-        end
-    end, {count=1}),
-})
-
--- Add commands.
-local cmd = lousy.bind.cmd
-add_cmds({
-    cmd({"bookmark", "bm"}, function (w, a)
-        if not a then
-            w:error("Missing bookmark arguments (use `:bookmark <uri> <tags>`)")
-            return
-        end
-        local args = util.string.split(a)
-        local uri = table.remove(args, 1)
-        add(uri, args)
-    end),
-
-    cmd("bookdel", function (w, a)
-        del(tonumber(a))
-    end),
-
-    cmd("bookmarks", function (w)
-        w:navigate(chrome_page)
-    end),
-})
-
-load()
 
 -- vim: et:sw=4:ts=8:sts=4:tw=80

@@ -13,8 +13,9 @@ local unpack = unpack
 
 -- Get luakit environment
 local lousy = require "lousy"
-local sql_escape, escape = lousy.util.sql_escape, lousy.util.escape
 local history = require "history"
+local bookmarks = require "bookmarks"
+local escape = lousy.util.escape
 local new_mode, get_mode = new_mode, get_mode
 local add_binds = add_binds
 local capi = { luakit = luakit }
@@ -38,12 +39,29 @@ end
 
 -- Command completion binds
 add_binds("completion", {
-    key({},          "Tab",    function (w) w.menu:move_down() end),
-    key({"Shift"},   "Tab",    function (w) w.menu:move_up()   end),
-    key({},          "Up",     function (w) w.menu:move_up()   end),
-    key({},          "Down",   function (w) w.menu:move_down() end),
-    key({},          "Escape", exit_completion),
-    key({"Control"}, "[",      exit_completion),
+    key({}, "Tab", "Select next matching completion item.",
+        function (w) w.menu:move_down() end),
+
+    key({"Shift"}, "Tab", "Select previous matching completion item.",
+        function (w) w.menu:move_up() end),
+
+    key({}, "Up", "Select next matching completion item.",
+        function (w) w.menu:move_up() end),
+
+    key({}, "Down", "Select previous matching completion item.",
+        function (w) w.menu:move_down() end),
+
+    key({"Control"}, "j", "Select next matching completion item.",
+        function (w) w.menu:move_down() end),
+
+    key({"Control"}, "k", "Select previous matching completion item.",
+        function (w) w.menu:move_up() end),
+
+    key({}, "Escape", "Stop completion and restore original command.",
+        exit_completion),
+
+    key({"Control"}, "[", "Stop completion and restore original command.",
+        exit_completion),
 })
 
 function update_completions(w, text, pos)
@@ -162,7 +180,8 @@ funcs = {
                         else
                             cmd = string.format(":%s (:%s)", cmd, b.cmds[1])
                         end
-                        cmds[cmd] = { escape(cmd), left = ":" .. b.cmds[1] }
+
+                        cmds[cmd] = { escape(cmd), escape(b.desc) or "", left = ":" .. b.cmds[1] }
                         break
                     end
                 end
@@ -173,7 +192,7 @@ funcs = {
         -- Return if no results
         if not keys[1] then return end
         -- Build completion menu items
-        local ret = {{ "Commands", title = true }}
+        local ret = {{ "Command", "Description", title = true }}
         for _, cmd in ipairs(keys) do
             table.insert(ret, cmds[cmd])
         end
@@ -186,16 +205,14 @@ funcs = {
         local term = string.match(state.left, "%s(%S+)$")
         if not term then return end
 
-        -- Build query & sort results by number of times visited
-        local glob = sql_escape("*" .. string.lower(term) .. "*")
+        local sql = [[
+            SELECT uri, title, lower(uri||title) AS text
+            FROM history WHERE text GLOB ?
+            ORDER BY visits DESC LIMIT 25
+        ]]
 
-        -- Build SQL query
-        local results = history.db:exec(string.format([[SELECT uri, title
-            FROM history WHERE lower(uri) GLOB %s OR lower(title) GLOB %s
-            ORDER BY visits DESC LIMIT 25;]], glob, glob))
-
-        -- Return if no history items matched
-        if not results[1] then return end
+        local rows = history.db:exec(sql, { string.format("*%s*", term) })
+        if not rows[1] then return end
 
         -- Strip last word (so that we can append the completion uri)
         local left = ":" .. string.sub(state.left, 1,
@@ -203,8 +220,37 @@ funcs = {
 
         -- Build rows
         local ret = {{ "History", "URI", title = true }}
-        for _, row in ipairs(results) do
+        for _, row in ipairs(rows) do
             table.insert(ret, { escape(row.title), escape(row.uri),
+                left = left .. row.uri })
+        end
+        return ret
+    end,
+
+    -- add bookmarks completion to the menu
+    bookmarks = function (state)
+        -- Find word under cursor (also checks not first word)
+        local term = string.match(state.left, "%s(%S+)$")
+        if not term then return end
+
+        local sql = [[
+            SELECT uri, title, lower(uri||title||tags) AS text
+            FROM bookmarks WHERE text GLOB ?
+            ORDER BY title DESC LIMIT 25
+        ]]
+
+        local rows = bookmarks.db:exec(sql, { string.format("*%s*", term) })
+        if not rows[1] then return end
+
+        -- Strip last word (so that we can append the completion uri)
+        local left = ":" .. string.sub(state.left, 1,
+            string.find(state.left, "%s(%S+)$"))
+
+        -- Build rows
+        local ret = {{ "Bookmarks", "URI", title = true }}
+        for _, row in ipairs(rows) do
+            local title = row.title ~= "" and row.title or row.uri
+            table.insert(ret, { escape(title), escape(row.uri),
                 left = left .. row.uri })
         end
         return ret
@@ -215,6 +261,7 @@ funcs = {
 order = {
     funcs.command,
     funcs.history,
+    funcs.bookmarks,
 }
 
 -- vim: et:sw=4:ts=8:sts=4:tw=80

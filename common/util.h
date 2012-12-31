@@ -26,6 +26,20 @@
 #include <glib.h>
 #include <string.h>
 #include <unistd.h>
+#include <lua.h>
+#include <sys/time.h>
+
+/* ANSI term color codes */
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+
+#define ANSI_COLOR_BG_RED  "\x1b[41m"
 
 /* Useful macros */
 #define NONULL(x) (x ? x : "")
@@ -62,10 +76,17 @@ static inline ssize_t l_strlen(const gchar *s) {
     return s ? strlen(s) : 0;
 }
 
+static inline gdouble l_time() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec + (tv.tv_usec / 1e6);
+}
+
 #define p_clear(p, count)       ((void)memset((p), 0, sizeof(*(p)) * (count)))
 
 gboolean file_exists(const gchar*);
 void l_exec(const gchar*);
+gchar *luaH_callerinfo(lua_State*);
 
 #endif
 // vim: ft=c:et:sw=4:ts=8:sts=4:tw=80

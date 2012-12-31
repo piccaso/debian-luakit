@@ -78,13 +78,19 @@ install:
 	install -d $(DESTDIR)/usr/share/pixmaps
 	install extras/luakit.png $(DESTDIR)/usr/share/pixmaps/
 	install -d $(DESTDIR)/usr/share/applications
-	install extras/luakit.desktop $(DESTDIR)/usr/share/applications/
+	install -m0644 extras/luakit.desktop $(DESTDIR)/usr/share/applications/
 	install -d $(MANPREFIX)/man1/
 	install -m644 luakit.1 $(MANPREFIX)/man1/
 
 uninstall:
 	rm -rf $(INSTALLDIR)/bin/luakit $(INSTALLDIR)/share/luakit $(MANPREFIX)/man1/luakit.1
 	rm -rf /usr/share/applications/luakit.desktop /usr/share/pixmaps/luakit.png
+
+lunit:
+	git clone git://repo.or.cz/lunit.git
+
+run-tests: luakit lunit
+	@./luakit -c tests/lunit-run.lua tests/test_*.lua
 
 newline: options;@echo
 .PHONY: all clean options install newline apidoc doc

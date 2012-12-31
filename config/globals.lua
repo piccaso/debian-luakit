@@ -53,11 +53,12 @@ soup.accept_policy = cookie_policy.always
 -- See: http://www.lua.org/manual/5.1/manual.html#pdf-string.format
 search_engines = {
     luakit      = "http://luakit.org/search/index/luakit?q=%s",
-    google      = "http://google.com/search?q=%s",
     duckduckgo  = "http://duckduckgo.com/?q=%s&t=debian",
+    github      = "https://github.com/search?q=%s",
+    google      = "http://google.com/search?q=%s",
+    imdb        = "http://www.imdb.com/find?s=all&q=%s",
     wikipedia   = "http://en.wikipedia.org/wiki/Special:Search?search=%s",
     debbugs     = "http://bugs.debian.org/%s",
-    imdb        = "http://imdb.com/find?s=all&q=%s",
     sourceforge = "http://sf.net/search/?words=%s",
     netflix     = "http://dvd.netflix.com/Search?v1=%s",
 }
@@ -68,7 +69,7 @@ search_engines.default = search_engines.duckduckgo
 --search_engines.default = "%s"
 
 -- Per-domain webview properties
--- See http://webkitgtk.org/reference/WebKitWebSettings.html
+-- See http://webkitgtk.org/reference/webkitgtk/stable/WebKitWebSettings.html
 domain_props = { --[[
     ["all"] = {
         enable_scripts          = false,

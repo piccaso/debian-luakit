@@ -1,3 +1,10 @@
+luakit (2012.09.13-r1-2) unstable; urgency=low
+
+  * Cherry-pick 105530f1542d568a6cf8d236eb1dc84fa982703b and
+    d24b8d230c2377e5ee015cbda78098d1da72c899 from luakit-crowd.
+
+ -- Clint Adams <clint@debian.org>  Sat, 13 Jul 2013 11:51:49 -0400
+
 luakit (2012.09.13-r1-1) unstable; urgency=low
 
   * New upstream version.

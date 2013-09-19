@@ -10,7 +10,7 @@ Vcs-Browser: http://git.debian.org/?p=collab-maint/luakit.git;a=summary
 
 Package: luakit
 Architecture: any
-Depends: ${shlibs:Depends}, liblua5.1-filesystem0
+Depends: ${shlibs:Depends}, lua5.1-filesystem
 Description: fast and small web browser extensible by Lua
  Luakit is a highly-configurable browser framework based on WebKitGTK+.
  It is very fast and extensible by Lua.  It is primarily targeted at power

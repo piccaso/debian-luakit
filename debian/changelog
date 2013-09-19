@@ -1,3 +1,11 @@
+luakit (2012.09.13-r1-3) UNRELEASED; urgency=low
+
+  [ Enrico Tassi ]
+  * Use post-wheezy Lua package names in Depends:
+    - liblua5.1-filesystem0 -> lua5.1-filesystem
+
+ -- Clint Adams <clint@debian.org>  Thu, 19 Sep 2013 18:20:31 +0200
+
 luakit (2012.09.13-r1-2) unstable; urgency=low
 
   * Cherry-pick 105530f1542d568a6cf8d236eb1dc84fa982703b and

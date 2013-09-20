@@ -1,4 +1,4 @@
-luakit (2012.09.13-r1-3) UNRELEASED; urgency=low
+luakit (2012.09.13-r1-3) unstable; urgency=low
 
   [ Enrico Tassi ]
   * Use post-wheezy Lua package names in Depends:
